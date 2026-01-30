@@ -22,6 +22,37 @@ Each tier does what it’s best at; together they cover orchestration, speed, an
 
 **When you’d want this:** building agentic coding or AI tooling (many tools + fast core + Python ML/data), needing throughput and low latency in the core engine but also Python libraries, or wanting fault tolerance and concurrency (Elixir) without giving up predictable performance (Zig) or ecosystem (Python).
 
+### Layout (three-tier flow)
+
+```mermaid
+flowchart TB
+  Source[Zixir source / eval]
+
+  subgraph T1["Tier 1: Elixir — Orchestrator"]
+    Intent[Intent / routing]
+    Memory[Memory / state]
+    Supervisor[Supervision]
+  end
+
+  subgraph T2["Tier 2: Zig — Engine"]
+    NIF[NIFs]
+    Math[Math, parsing, core ops]
+  end
+
+  subgraph T3["Tier 3: Python — Specialist"]
+    Port[Port bridge]
+    Libs[ML, data, scripts]
+  end
+
+  Source --> Intent
+  Intent --> Memory
+  Intent --> Supervisor
+  Intent -->|"hot path"| NIF
+  Intent -->|"library calls"| Port
+  NIF --> Math
+  Port --> Libs
+```
+
 ## Requirements
 
 - **Elixir** 1.14+ / OTP 25+

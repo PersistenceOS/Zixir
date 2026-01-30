@@ -1,0 +1,30 @@
+# Mix / Elixir
+/_build/
+/deps/
+/cover/
+*.beam
+.elixir_ls/
+erl_crash.dump
+*.ez
+
+# Zigler / Zig
+.zig-cache/
+*.dll
+*.so
+*.dylib
+
+# Python (if local venv in repo)
+/venv/
+.venv/
+__pycache__/
+*.pyc
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Misc
+/nul

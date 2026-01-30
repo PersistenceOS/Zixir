@@ -1,0 +1,77 @@
+# Zixir Tutorial - Learn by Example
+# Run with: mix zixir run tutorial.zr
+
+# ============================================
+# Part 1: Basic Values
+# ============================================
+
+# Numbers
+let my_int = 42
+let my_float = 3.14159
+
+# Strings
+let greeting = "Hello, Zixir!"
+
+# Arrays (use floats for engine operations)
+let numbers = [1.0, 2.0, 3.0, 4.0, 5.0]
+let more_numbers = [10.0, 20.0, 30.0]
+
+# ============================================
+# Part 2: Arithmetic
+# ============================================
+
+let sum = 10 + 20
+let product = 5 * 6
+let combined = sum + product
+
+# ============================================
+# Part 3: Engine Operations (Zig - Super Fast!)
+# ============================================
+
+# Sum all elements in an array
+let total = engine.list_sum(numbers)
+# Result: 15.0
+
+# Multiply all elements
+let product_result = engine.list_product(numbers)
+# Result: 120.0
+
+# Dot product of two arrays
+let dot = engine.dot_product([1.0, 2.0, 3.0], [4.0, 5.0, 6.0])
+# Result: 32.0 (1*4 + 2*5 + 3*6)
+
+# Count bytes in a string
+let str_length = engine.string_count(greeting)
+# Result: 15
+
+# ============================================
+# Part 4: Python Integration
+# ============================================
+
+# Call Python math functions
+let sqrt_result = python "math" "sqrt" (16.0)
+# Result: 4.0
+
+# Use numpy for statistics (if numpy is installed)
+# let mean = python "numpy" "mean" (numbers)
+# let std = python "numpy" "std" (numbers)
+
+# ============================================
+# Part 5: Combining Everything
+# ============================================
+
+# Calculate some statistics
+let data = [10.0, 20.0, 30.0, 40.0, 50.0]
+let data_sum = engine.list_sum(data)
+let data_count = 5.0
+let average = data_sum / data_count
+
+# ============================================
+# Final Result
+# ============================================
+
+# The last expression is the program's output
+# Let's return a summary of our calculations
+
+engine.list_sum([total, product_result, dot, str_length])
+# This sums: 15.0 + 120.0 + 32.0 + 15.0 = 182.0

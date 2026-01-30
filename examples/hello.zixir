@@ -1,0 +1,5 @@
+# Zixir example: let, engine, and last expression
+let sum = engine.list_sum([1.0, 2.0, 3.0])
+let n = engine.string_count("hello")
+sum + n
+# result: 11.0 (6 + 5)

@@ -1,0 +1,51 @@
+# Example Zixir Program
+# Demonstrates all 5 phases of the compiler
+
+# Phase 1: Parse - Functions with type inference
+fn fib(n: Int) -> Int:
+  if n <= 1:
+    n
+  else:
+    fib(n-1) + fib(n-2)
+
+# Phase 2: Python FFI - Direct Python library calls
+fn calculate_stats(data: [Float]) -> {mean: Float, std: Float}:
+  let mean = python "numpy" "mean" (data)
+  let std = python "numpy" "std" (data)
+  {mean: mean, std: std}
+
+# Phase 3: Type Inference - Types automatically inferred
+fn process_data(data):
+  # Type inferred as: fn([Float]) -> Float
+  data |> map(x => x * 2.0) |> sum()
+
+# Phase 4: MLIR Optimization - Vectorized automatically
+fn vector_math(a: [Float], b: [Float]) -> [Float]:
+  # This will be vectorized by MLIR
+  [a[i] * b[i] + a[i+1] * b[i+1] for i in 0..a.len/2]
+
+# Phase 5: GPU Acceleration - Offloaded to GPU
+fn gpu_matrix_multiply(a: [[Float]], b: [[Float]]) -> [[Float]]:
+  # Automatically detected as GPU-suitable
+  python "numpy" "matmul" (a, b)
+
+# Main entry point
+fn main():
+  # Test Fibonacci
+  let fib_result = fib(10)
+  println("Fib(10) = " + fib_result)
+  
+  # Test array operations
+  let data = [1.0, 2.0, 3.0, 4.0, 5.0]
+  let processed = process_data(data)
+  println("Processed sum: " + processed)
+  
+  # Test Python integration
+  let stats = calculate_stats(data)
+  println("Mean: " + stats.mean + ", Std: " + stats.std)
+  
+  # Test GPU-accelerated operations (if available)
+  let matrix_a = [[1.0, 2.0], [3.0, 4.0]]
+  let matrix_b = [[5.0, 6.0], [7.0, 8.0]]
+  let result = gpu_matrix_multiply(matrix_a, matrix_b)
+  println("Matrix result: " + result)

@@ -1,0 +1,13 @@
+%{
+  "beaver": {:hex, :beaver, "0.4.7", "8402d4e9aadfc4c65fe4d75ddc2cc24e21682b31ee7ed7b5b3169de0281a495c", [:mix], [{:elixir_make, "~> 0.4", [hex: :elixir_make, repo: "hexpm", optional: false]}, {:kinda, "~> 0.10.3", [hex: :kinda, repo: "hexpm", optional: false]}], "hexpm", "7ad033138d4b36b0863858c32f57b0a50b2391655164c3b2bc8f4cdbe7840277"},
+  "elixir_make": {:hex, :elixir_make, "0.9.0", "6484b3cd8c0cee58f09f05ecaf1a140a8c97670671a6a0e7ab4dc326c3109726", [:mix], [], "hexpm", "db23d4fd8b757462ad02f8aa73431a426fe6671c80b200d9710caf3d1dd0ffdb"},
+  "erlport": {:hex, :erlport, "0.11.0", "8bb46a520e6eb9146e655fbf9b824433d9d532194667069d9aa45696aae9684b", [:rebar3], [], "hexpm", "8eb136ccaf3948d329b8d1c3278ad2e17e2a7319801bc4cc2da6db278204eee4"},
+  "jason": {:hex, :jason, "1.4.4", "b9226785a9aa77b6857ca22832cffa5d5011a667207eb2a0ad56adb5db443b8a", [:mix], [{:decimal, "~> 1.0 or ~> 2.0", [hex: :decimal, repo: "hexpm", optional: true]}], "hexpm", "c5eb0cab91f094599f94d55bc63409236a8ec69a21a67814529e8d5f6cc90b3b"},
+  "kinda": {:hex, :kinda, "0.10.8", "8fb002f436477d762349cf4672411bcdd280f7958f04861169dad3171455733b", [:mix], [{:elixir_make, "~> 0.4", [hex: :elixir_make, repo: "hexpm", optional: false]}], "hexpm", "07e67bb80c8e31d47b19d0104e01fd1c2f85a07567a1f03fdf8b86000dfc58fa"},
+  "nimble_parsec": {:hex, :nimble_parsec, "1.4.2", "8efba0122db06df95bfaa78f791344a89352ba04baedd3849593bfce4d0dc1c6", [:mix], [], "hexpm", "4b21398942dda052b403bbe1da991ccd03a053668d147d53fb8c4e0efe09c973"},
+  "pegasus": {:hex, :pegasus, "0.2.6", "b4af6522326fbb2ffd1bb706e78ec05854fbcb4b03a7fe08f8db2e9de1d0be67", [:mix], [{:nimble_parsec, "~> 1.2", [hex: :nimble_parsec, repo: "hexpm", optional: false]}], "hexpm", "0ac159f0ccab7967cf90208327cc8a35788874814c8d78e19d47104d3fc049b9"},
+  "protoss": {:hex, :protoss, "1.1.0", "853533313989751c7da5b0e1ce71501a23f3dc41f128709478af40daccc6e959", [:mix], [], "hexpm", "c2f874383dd047fcfdf467b814dd33a208a4d24a467aef90d86185b41a0752ad"},
+  "zig_get": {:hex, :zig_get, "0.15.2", "a6ccaa894213839ba95615bf9be2b2c9268e37ab9547a2344830202cfd6d7cc0", [:mix], [], "hexpm", "e6b0028f2d5a8da791ff8037deff5b492784017d8d241e598377a24bd765f56f"},
+  "zig_parser": {:hex, :zig_parser, "0.6.0", "b1296c64bf5c2592de2eb4bc8bbf79d85b1d6a3ab444c443becd7af579d85681", [:mix], [{:pegasus, "~> 0.2.4", [hex: :pegasus, repo: "hexpm", optional: false]}], "hexpm", "bb7a1523b69f7f8f6b74ba5bf9dabc83f512c0cd67d9eebba1c501a529a2f95e"},
+  "zigler": {:git, "https://github.com/E-xyza/zigler.git", "7d6f96e08c53dd0e5cd2526ae71f3faba7b1bbee", [ref: "0.15.2"]},
+}

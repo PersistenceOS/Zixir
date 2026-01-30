@@ -19,7 +19,6 @@ defmodule Zixir.LSP.Server do
   alias Zixir.Compiler.TypeSystem
 
   # LSP Protocol constants
-  @lsp_version "3.17.0"
 
   defmodule State do
     defstruct [
@@ -203,9 +202,9 @@ defmodule Zixir.LSP.Server do
 
   # LSP method handlers
 
-  defp handle_initialize(id, params, state) do
-    root_uri = params["rootUri"]
-    client_capabilities = params["capabilities"] || %{}
+  defp handle_initialize(id, params, _state) do
+    _root_uri = params["rootUri"]
+    _client_capabilities = params["capabilities"] || %{}
     
     server_capabilities = %{
       "textDocumentSync" => %{

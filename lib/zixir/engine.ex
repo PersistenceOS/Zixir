@@ -17,7 +17,7 @@ defmodule Zixir.Engine do
     try do
       do_run(op, args)
     rescue
-      e in ErlangError ->
+      _e in ErlangError ->
         # NIF not loaded, use fallback
         Logger.debug("NIF not available for #{op}, using Elixir fallback")
         run_fallback(op, args)

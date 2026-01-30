@@ -145,7 +145,7 @@ defmodule Mix.Tasks.Zixir do
   end
   
   defp test_command(args) do
-    {opts, files, _} = OptionParser.parse(args,
+    {_opts, files, _} = OptionParser.parse(args,
       switches: [
         verbose: :boolean,
         include: :string
@@ -265,7 +265,7 @@ defmodule Mix.Tasks.Zixir do
           _ ->
             # Evaluate expression
             case Zixir.Compiler.Parser.parse(input) do
-              {:ok, ast} ->
+              {:ok, _ast} ->
                 case Zixir.Compiler.Pipeline.run_string(input, [], verbose: false) do
                   {:ok, result} ->
                     IO.puts("=> #{String.trim(result)}")
@@ -323,7 +323,7 @@ defmodule Mix.Tasks.Zixir do
     end
   end
   
-  defp python_command(args) do
+  defp python_command(_args) do
     IO.puts("Testing Python FFI connection...")
     
     case Zixir.Compiler.PythonFFI.init() do

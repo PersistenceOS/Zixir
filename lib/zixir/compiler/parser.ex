@@ -104,7 +104,6 @@ defmodule Zixir.Compiler.Parser do
   defp read_string([], line, col, _acc), do: raise(ParseError, message: "Unterminated string", line: line, column: col)
   defp read_string([c | rest], line, col, acc), do: read_string(rest, line, col + 1, acc <> c)
 
-  defp read_number(["." | rest], col, true), do: {0, rest, col + 1}  # Already seen dot
   defp read_number(["." | rest], col, false) do
     {rest, new_col} = read_digits(rest, col + 1)
     num_str = "." <> String.slice(List.to_string(rest), 0, new_col - col - 1)
@@ -164,11 +163,6 @@ defmodule Zixir.Compiler.Parser do
   defp keyword_or_identifier("in", line, col), do: {:in, line, col}
   defp keyword_or_identifier(name, line, col), do: {:ident, name, line, col}
 
-  # Parser - recursive descent with error recovery
-  defp parse_program(tokens) do
-    parse_statements(tokens, [])
-  end
-
   defp parse_program_with_recovery(tokens) do
     parse_statements_with_recovery(tokens, [], [])
   end
@@ -222,15 +216,6 @@ defmodule Zixir.Compiler.Parser do
       [{:import, _, _} | _] = t -> t
       [{:pub, _, _} | _] = t -> t
       [_ | rest] -> skip_to_statement_boundary(rest)
-    end
-  end
-
-  defp parse_statements([], acc), do: {{:program, Enum.reverse(acc)}, []}
-  
-  defp parse_statements(tokens, acc) do
-    case parse_statement(tokens) do
-      {nil, rest} -> parse_statements(rest, acc)
-      {stmt, rest} -> parse_statements(rest, [stmt | acc])
     end
   end
 

@@ -53,7 +53,7 @@ defmodule Zixir.FunctionsTest do
     end
 
     test "function returning string" do
-      code = """
+      _code = """
       fn greet(name: String) -> String: "Hello, " + name
       greet("World")
       """

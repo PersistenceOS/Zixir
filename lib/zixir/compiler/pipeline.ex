@@ -151,7 +151,7 @@ defmodule Zixir.Compiler.Pipeline do
       
       case System.cmd("cmd", ["/c", cmd], stderr_to_stdout: true) do
         {_, 0} -> {:ok, binary}
-        {output, code} -> {:error, "JIT compilation failed: #{output}"}
+        {output, _code} -> {:error, "JIT compilation failed: #{output}"}
       end
     end
   end
@@ -161,7 +161,7 @@ defmodule Zixir.Compiler.Pipeline do
     
     case System.cmd(binary_path, args, stderr_to_stdout: true) do
       {output, 0} -> {:ok, output}
-      {output, code} -> {:ok, output}  # Non-zero exit still returns output
+      {output, _code} -> {:ok, output}  # Non-zero exit still returns output
     end
   end
 
@@ -183,7 +183,7 @@ defmodule Zixir.Compiler.Pipeline do
   end
 
   defp add_runtime_preamble(zig_code) do
-    runtime_path = Path.join([Application.app_dir(:zixir), "priv", "zig", "zixir_runtime.zig"])
+    _runtime_path = Path.join([Application.app_dir(:zixir), "priv", "zig", "zixir_runtime.zig"])
     
     preamble = """
     // Zixir Runtime Preamble

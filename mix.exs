@@ -14,7 +14,17 @@ defmodule Zixir.MixProject do
       description: "Zixir: three-tier runtime — Elixir (orchestrator), Zig (engine), Python (specialist)",
       package: package(),
       docs: docs(),
-      aliases: aliases()
+      aliases: aliases(),
+      releases: releases()
+    ]
+  end
+
+  defp releases do
+    [
+      zixir: [
+        include_executables_for: [:unix, :windows],
+        applications: [runtime_tools: :permanent]
+      ]
     ]
   end
 

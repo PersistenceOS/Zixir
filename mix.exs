@@ -2,7 +2,7 @@ defmodule Zixir.MixProject do
   use Mix.Project
 
   @version "0.1.0"
-  @source_url "https://github.com/your-org/zixir"
+  @source_url "https://github.com/PersistenceOS/Zixir"
 
   def project do
     [

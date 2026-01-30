@@ -1,5 +1,7 @@
 # Zixir
 
+**Repository:** [github.com/PersistenceOS/Zixir](https://github.com/PersistenceOS/Zixir)
+
 A programming language and three-tier runtime: **Elixir** (orchestrator), **Zig** (engine), **Python** (specialist). One stack that gives you reliability, speed, and ecosystem.
 
 ## Why a three-tier runtime?
@@ -28,18 +30,18 @@ Each tier does what it’s best at; together they cover orchestration, speed, an
 flowchart TB
   Source[Zixir source / eval]
 
-  subgraph T1["Tier 1: Elixir — Orchestrator"]
+  subgraph T1["Tier 1: Elixir - Orchestrator"]
     Intent[Intent / routing]
     Memory[Memory / state]
     Supervisor[Supervision]
   end
 
-  subgraph T2["Tier 2: Zig — Engine"]
+  subgraph T2["Tier 2: Zig - Engine"]
     NIF[NIFs]
     Math[Math, parsing, core ops]
   end
 
-  subgraph T3["Tier 3: Python — Specialist"]
+  subgraph T3["Tier 3: Python - Specialist"]
     Port[Port bridge]
     Libs[ML, data, scripts]
   end
@@ -47,8 +49,8 @@ flowchart TB
   Source --> Intent
   Intent --> Memory
   Intent --> Supervisor
-  Intent -->|"hot path"| NIF
-  Intent -->|"library calls"| Port
+  Intent -->|hot path| NIF
+  Intent -->|library calls| Port
   NIF --> Math
   Port --> Libs
 ```
@@ -149,4 +151,4 @@ Expected: tests pass; `examples/hello.zixir` prints `11.0`. On Windows run `scri
 
 ## License
 
-See LICENSE file if present.
+**Apache-2.0** — see [LICENSE](LICENSE).

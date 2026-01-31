@@ -24,6 +24,20 @@ Each tier does what it’s best at; together they cover orchestration, speed, an
 
 **When you’d want this:** building agentic coding or AI tooling (many tools + fast core + Python ML/data), needing throughput and low latency in the core engine but also Python libraries, or wanting fault tolerance and concurrency (Elixir) without giving up predictable performance (Zig) or ecosystem (Python).
 
+### Comparison to industry tools
+
+| Feature | Zixir | Airflow | Kubeflow | Prefect |
+|---------|-------|---------|----------|---------|
+| Workflow orchestration | ✅ | ✅ | ✅ | ✅ |
+| Checkpointing / recovery | ✅ | ⚠️ | ✅ | ✅ |
+| Resource limits | ✅ | ❌ | ⚠️ | ⚠️ |
+| Python integration | ✅ | ✅ | ✅ | ✅ |
+| Observability | ✅ | ⚠️ | ⚠️ | ✅ |
+| Async / streaming | ✅ | ❌ | ❌ | ⚠️ |
+| Built-in caching | ✅ | ❌ | ❌ | ❌ |
+| Pattern matching | ✅ | ❌ | ❌ | ❌ |
+| Interactive REPL | ✅ | ❌ | ❌ | ❌ |
+
 ### Layout (three-tier flow)
 
 ```mermaid

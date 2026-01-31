@@ -2,7 +2,7 @@
 
 **Repository:** [github.com/PersistenceOS/Zixir](https://github.com/PersistenceOS/Zixir)
 
-A programming language and three-tier runtime: **Elixir** (orchestrator), **Zig** (engine), **Python** (specialist). One stack that gives you reliability, speed, and ecosystem.
+A programming language and three-tier runtime: **Elixir** (orchestrator), **Zig** (engine), **Python** (specialist). Zixir today is a small, expression-oriented language. One stack that gives you reliability, speed, and ecosystem.
 
 ## Why a three-tier runtime?
 

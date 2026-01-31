@@ -11,7 +11,7 @@ defmodule Zixir.MixProject do
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      description: "Zixir: three-tier runtime — Elixir (orchestrator), Zig (engine), Python (specialist)",
+      description: "Zixir: small, expression-oriented language and three-tier runtime — Elixir (orchestrator), Zig (engine), Python (specialist)",
       package: package(),
       docs: docs(),
       aliases: aliases(),

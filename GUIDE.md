@@ -2,10 +2,43 @@
 
 ## What is Zixir?
 
-Zixir is a three-tier programming language that combines:
+Zixir is a small, expression-oriented language and a three-tier runtime that combines:
 - **Elixir** (orchestrator) - For concurrency, fault tolerance, and intent
 - **Zig** (engine) - For memory-critical math and high-speed data operations
 - **Python** (specialist) - For accessing Python libraries and ecosystem
+
+## What is Zixir good at?
+
+- **Array-heavy and numeric work** — Sums, products, dot products, and similar ops run in the Zig engine (NIFs), often 100–1000× faster than doing the same in pure Elixir. Use `engine.list_sum`, `engine.list_product`, `engine.dot_product` for hot paths.
+- **One language, three backends** — You write Zixir; the runtime picks Elixir for orchestration, Zig for fast math, and Python when you need a library. No need to hand-write C/Zig bindings for every Python or numeric kernel.
+- **Pipelines that mix math and ecosystem** — Express formulas and data steps in Zixir, call out to Python (e.g. numpy, plotting, APIs) where needed, and let the engine handle the heavy numeric parts.
+- **Scripts and small tools** — A single Zixir program can do arithmetic, aggregate over arrays, and call Python for I/O or visualization, with predictable performance where it matters.
+
+## Good use cases for Zixir
+
+| Use case | Why Zixir fits |
+|----------|----------------|
+| **Data processing / analytics** | Engine ops for aggregates and dot products; Python for pandas/numpy or plotting when needed. |
+| **Simulation / game math** | Positions, velocities, and dot products in the engine; game loop in Elixir; display or UI in Python (e.g. tkinter, pygame). |
+| **Scientific or numerical scripting** | Write formulas in Zixir, use the engine for hot loops, call Python for scipy/numpy or file formats. |
+| **Tooling and automation** | Elixir orchestrates steps; Zixir handles numeric logic; Python handles formats, APIs, or GUIs. |
+| **Learning or teaching** | One syntax that spans “math” (Zixir), “fast kernel” (Zig), and “ecosystem” (Python) in a single runtime. |
+
+As the language grows (e.g. functions, control flow, more engine ops), it will fit larger programs and more domains while keeping the same three-tier split.
+
+### Zixir for game development
+
+Zixir fits specific **areas** of game development rather than replacing a full engine:
+
+| Area | How Zixir helps |
+|------|------------------|
+| **Game math / physics** | Positions, velocities, dot products, and aggregates run in the **Zig engine** (NIFs). Use `engine.list_sum`, `engine.dot_product` for movement, scoring, or collision-style math. The language expresses the formulas; the engine runs them fast. |
+| **Prototyping & small games** | Elixir runs the loop; Zixir (or `.zr` scripts) computes state each frame; Python (tkinter, pygame) handles display and input. Good for 2D prototypes, tools, and learning. |
+| **Simulation & numeric logic** | Damage formulas, stats, economy, or any numeric game logic can live in Zixir and hit the engine for hot paths. Elixir coordinates; Python is only for I/O or rendering. |
+| **Game tooling & pipelines** | Level data, balance tables, or asset pipelines: Elixir orchestrates; Zixir does numeric/aggregate logic; Python handles file formats or scripting. |
+| **Server-side game logic** | For matchmaking, scoring, or stats, Elixir's concurrency plus Zixir + engine for numeric work can handle server-side game logic without Python in the hot path. |
+
+Zixir is **not** aimed at building a full AAA engine (no 3D renderer, no custom low-level loop in Zixir yet). It **is** a good fit for: game math, 2D prototypes, simulation, tooling, and server-side numeric logic—all with one language and a clear split between fast kernels (Zig) and ecosystem (Python).
 
 ## Quick Start
 
@@ -325,6 +358,47 @@ mix zig.get
 mix compile
 ```
 
+## 2D game with GUI
+
+A minimal 2D game that uses the **language** for position math (via the **Zig engine**), Elixir for bounce, and Python only for drawing:
+
+```bash
+mix zixir game
+```
+
+Or: `mix run examples/gui_game.exs`
+
+- **Zixir (language):** Each frame we run Zixir source like `engine.list_sum([pos, vel * dt])` — your language, not Python expressions.
+- **Zig (engine):** That call runs in the Zig NIF (`engine.list_sum`), so the hot path is native code, not Python.
+- **Elixir (orchestrator):** Handles bounce (flip velocity at walls). Python never sees the math.
+- **Python/tkinter:** Only draws the ball at the positions we send; it does not evaluate Zixir or run the engine.
+
+The game window shows the Zixir snippet and “Zixir + Zig + Elixir → Python” so it’s clear the language and engine are in the loop. Close the window when done.
+
+### Why it can look like “just Python”
+
+Because the **window** is Python/tkinter, it’s easy to think the whole program is Python. In our setup:
+
+- **Python’s role:** Display only (window, canvas, timer). It does not run your language or the Zig engine.
+- **Our language’s role:** The position each frame is computed by **Zixir** (`let pos = ... let vel = ... engine.list_sum([pos, vel * dt])`) and the **Zig engine** (the NIF that does the sum). So the language and engine **look** different (you see the Zixir snippet in the GUI) and **perform** differently (native Zig in the hot path, not Python).
+- **Elixir’s role:** Drives the loop, does bounce logic, and calls Zixir.eval and the Python port. So the “program” is Zixir + Elixir; Python is just the display backend.
+
+To make that visible, the game window displays the Zixir expression and the pipeline (Zixir + Zig + Elixir → Python). For more “language in the foreground” examples, run `.zr` files with `mix zixir run` or `mix zixir repl` and use `engine.*` in your source so the Zig layer is clearly involved.
+
+### Using Zixir with SDL2
+
+Yes. Zixir can be used with SDL2 (or similar native graphics APIs) instead of Python for display.
+
+Right now the GUI examples use **Python/tkinter** as the display backend. To use **SDL2** you'd add it to the project and expose it to the runtime. Typical options:
+
+| Approach | How it works |
+|----------|----------------|
+| **Zig NIFs** | Add SDL2 (or a Zig SDL2 wrapper) to the Zig side and expose SDL2 functions as new engine ops or a separate NIF module. Elixir/Zixir then calls e.g. `sdl2.init()`, `sdl2.create_window()`, `sdl2.render_clear()`, etc. Same pattern as the existing engine (Zigler NIFs). |
+| **Port** | Run a separate process (C, Zig, or Rust) that links SDL2 and talks to Elixir over stdin/stdout or a socket. Elixir sends draw commands and receives input events. Similar to the Python port but with a native binary. |
+| **Elixir SDL2 binding** | Use an existing Elixir SDL2 library (if available) and call it from the game loop; Zixir still does the math via `Zixir.eval` and engine ops. |
+
+In all cases, **Zixir and the Zig engine** keep doing game math; **SDL2** replaces Python as the display and input backend. So: Zixir + Zig (language + engine) + Elixir (loop) + SDL2 (window/rendering/input) instead of + Python/tkinter.
+
 ## Resources
 
 - **Language Spec**: See `docs/LANGUAGE.md`
@@ -335,8 +409,9 @@ mix compile
 ## Next Steps
 
 1. Try the examples in `examples/` directory
-2. Run `mix zixir repl` to experiment interactively
-3. Read the full language specification in `docs/LANGUAGE.md`
-4. Check out the test files in `test/` for more usage patterns
+2. Run `mix zixir game` to see the 2D ball game
+3. Run `mix zixir repl` to experiment interactively
+4. Read the full language specification in `docs/LANGUAGE.md`
+5. Check out the test files in `test/` for more usage patterns
 
 Happy coding with Zixir! 🚀

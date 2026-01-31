@@ -109,6 +109,8 @@ flowchart TB
 
 **Platforms:** Windows, macOS, Linux. Zigler compiles NIFs at `mix compile`; Python script: `priv/python/port_bridge.py`.
 
+**New to Zixir?** For step-by-step install of Elixir, Zig, and Python per OS, see [SETUP_GUIDE.md](SETUP_GUIDE.md).
+
 ## Entry point (agentic extension)
 
 - `Zixir.run_engine(op, args)` — hot path (math, data) → Zig
@@ -117,6 +119,8 @@ flowchart TB
 Intent and routing live in `Zixir.Intent`.
 
 ## Setup
+
+From a clone of the repo:
 
 ```bash
 mix deps.get
@@ -140,11 +144,13 @@ Zixir.run("let x = 5\nlet y = 5\nx + y")
 # => 10
 ```
 
-Run a `.zixir` file:
+Run a `.zixir` file (from repo root):
 
 ```bash
 mix zixir.run examples/hello.zixir
 ```
+
+**Run from any directory:** Build a release (`mix release`), add `_build/prod/rel/zixir/bin` to PATH, then use `zixir_run.sh` / `zixir_run.bat` with a path to a `.zixir` file. See [SETUP_GUIDE.md](SETUP_GUIDE.md#global--portable-cli-run-from-any-directory).
 
 Grammar, types, and standard library: see [docs/LANGUAGE.md](docs/LANGUAGE.md).
 

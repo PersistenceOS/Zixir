@@ -1,0 +1,7 @@
+# Test task sample: compiles and runs from any path (mix zixir.run or zixir_run.bat).
+# Result: 22.0 (dot_product 11 + list_sum 6 + string_count 5)
+
+let a = engine.dot_product([1.0, 2.0], [3.0, 4.0])
+let b = engine.list_sum([1.0, 2.0, 3.0])
+let c = engine.string_count("Zixir")
+a + b + c

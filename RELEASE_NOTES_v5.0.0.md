@@ -1,59 +1,37 @@
-# Zixir v5.0.0 — Global CLI, Python FFI, Package Manager, GPU, Standard Library
+# Zixir v5.0.0 — Portable CLI, setup fixes, and redeploy
 
-This release adds a **global/portable CLI**, **Python FFI** (working), **Package Manager** (working), **GPU (CUDA)** enhancements, and an **expanded Standard Library** (100+ functions). Run Zixir from anywhere; install and manage packages; call Python natively; accelerate with CUDA; use a rich built-in library.
+This release adds a **global/portable CLI** (run Zixir from any terminal path), **setup and docs fixes**, **signature test**, **test task sample**, and **PowerShell test script**. Redeploy of v5 with these fixes included.
 
 ---
 
 ## 1. Global / Portable CLI ✅
 
-- **Global CLI** — Install Zixir once, run `zixir` from any directory
-- **Portable** — Single binary or script; no project-local install required
-- **Cross-platform** — Windows, macOS, Linux support
+- **Run from any path** — After `mix release`, add `_build/dev/rel/zixir/bin` (or prod) to PATH. Run `zixir_run.bat` (Windows) or `zixir_run.sh` (Unix) with a path to a `.zixir` file from any directory.
+- **Zixir.CLI** — `run_file(path)` and `run_file_from_argv()` for release eval; argv handling skips `--` so the path is correct.
+- **Overlay scripts** — `rel/overlays/bin/zixir_run.bat` and `zixir_run.sh` included in the release.
 
 ---
 
-## 2. Python FFI ✅ Working
+## 2. Setup and docs fixes ✅
 
-- **Python FFI** — Native Python interop (not just port bridge)
-- **Direct calls** — Lower latency, better type handling
-- **Working** — Stable for production use
-
----
-
-## 3. Package Manager ✅ Working
-
-- **Package Manager** — Install, publish, and resolve Zixir packages
-- **Dependency resolution** — Version constraints, lockfile
-- **Working** — Ready for ecosystem use
+- **SETUP_GUIDE.md** — Added `mix zig.get` to Project Setup; aligned Zig version (0.15+); Windows install options (Scoop + installer link); note that Zigler can download Zig via `mix zig.get`.
+- **README.md** — Link to SETUP_GUIDE for full install; “From a clone of the repo” before Setup commands.
+- **docs/INDEX.md** — SETUP_GUIDE listed under Getting Started.
 
 ---
 
-## 4. GPU (CUDA) ✅ Enhanced
+## 3. Signature test and test task ✅
 
-- **GPU (CUDA)** — Enhanced support for CUDA kernels
-- **Auto-offload** — Detect and run suitable code on GPU
-- **Performance** — Better integration and tuning
-
----
-
-## 5. Standard Library ✅ Expanded (100+ functions)
-
-- **Standard Library** — 100+ built-in functions
-- **Engine** — Math, vectors, matrices, strings, lists, maps
-- **Quality / Drift / Experiment** — Data validation, drift detection, A/B testing helpers
-- **Workflow / Stream / Cache** — Orchestration, streaming, persistence
+- **test/zixir/signature_test.exs** — Unique test: hello-program signature (11.0), Zixir.run, parse→eval, idempotent eval; engine composition (dot_product + list_sum, etc.); parse/compile pipeline.
+- **examples/test_task.zixir** — Sample that compiles and returns 22.0; used for portable CLI verification.
+- **scripts/test-portable-cli.ps1** — PowerShell script: (1) mix zixir.run relative path, (2) mix zixir.run absolute path, (3) release `zixir_run.bat` from another directory. Checks both dev and prod release paths.
 
 ---
 
-## Implementation status (v5.0)
+## 4. Release and compatibility
 
-| Feature            | Status      |
-| ------------------ | ----------- |
-| Global/Portable CLI | ✅ Supported |
-| Python FFI         | ✅ Working   |
-| Package Manager    | ✅ Working   |
-| GPU (CUDA)         | ✅ Enhanced  |
-| Standard Library   | ✅ Expanded (100+ functions) |
+- **mix.exs** — Version 5.0.0; release overlays `rel/overlays` for portable runner scripts.
+- **PowerShell 7.x** — Test script runs correctly; release `zixir_run.bat` works from any cwd when given full path to a `.zixir` file.
 
 ---
 
@@ -62,7 +40,6 @@ This release adds a **global/portable CLI**, **Python FFI** (working), **Package
 - **Elixir** 1.14+ / OTP 25+
 - **Zig** 0.15+ (build-time; run `mix zig.get` after `mix deps.get`)
 - **Python** 3.8+ *(optional)* for ML/specialist calls
-- **CUDA** *(optional)* for GPU acceleration
 
 ## Quick start
 
@@ -76,11 +53,14 @@ mix compile
 mix test
 ```
 
-With global CLI (if installed):
+Portable CLI (after `mix release`, add `bin/` to PATH):
 
 ```bash
-zixir run examples/hello.zixir
-zixir eval "engine.list_sum([1.0, 2.0, 3.0])"
+# Windows
+zixir_run.bat C:\path\to\script.zixir
+
+# Unix/macOS
+./zixir_run.sh /path/to/script.zixir
 ```
 
 ## License

@@ -5,9 +5,10 @@ Welcome to Zixir! This index will help you find the documentation you need.
 ## 📚 Documentation Files
 
 ### Getting Started
+- **[README.md](../README.md)** - Project overview and quick setup
+- **[SETUP_GUIDE.md](../SETUP_GUIDE.md)** - Step-by-step install (Elixir, Zig, Python) per OS
 - **[GUIDE.md](../GUIDE.md)** - Complete user guide with examples
 - **[QUICKREF.md](../QUICKREF.md)** - Quick reference cheat sheet
-- **[README.md](../README.md)** - Project overview and setup instructions
 
 ### Language Reference
 - **[LANGUAGE.md](LANGUAGE.md)** - Formal language specification
@@ -22,18 +23,20 @@ Welcome to Zixir! This index will help you find the documentation you need.
 
 ```bash
 # 1. Setup
+git clone https://github.com/Zixir-lang/Zixir.git
+cd Zixir
 mix deps.get
 mix zig.get
 mix compile
 
 # 2. Try an example
-mix zixir run examples/tutorial.zr
+mix zixir.run examples/hello.zixir
 
 # 3. Run tests
 mix test
 
 # 4. Start REPL
-mix zixir repl
+mix zixir.repl
 ```
 
 ## 📖 Learning Path

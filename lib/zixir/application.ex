@@ -13,6 +13,7 @@ defmodule Zixir.Application do
       Zixir.Memory,
       Zixir.Python.CircuitBreaker,
       Zixir.Python.Supervisor,
+      Zixir.Modules,
       Zixir.Intent
     ]
 

@@ -158,6 +158,12 @@ defmodule Zixir do
       eval_for_loop(var_name, items, body, env)
     end
   end
+
+  defp eval_expr({:match, value_expr, clauses, _line, _col}, env) do
+    with {:ok, value} <- eval_expr(value_expr, env) do
+      eval_match(value, clauses, env)
+    end
+  end
   
   defp eval_expr(_expr, _env) do
     {:error, "Unsupported expression"}
@@ -261,6 +267,102 @@ defmodule Zixir do
   
   defp eval_binop(_op, _l, _r), do: {:error, "Invalid binary operation"}
 
+  # Pattern matching evaluation
+  defp eval_match(_value, [], _env) do
+    {:error, "No matching clause found"}
+  end
+
+  defp eval_match(value, [{pattern, body} | rest], env) do
+    case match_pattern(pattern, value, env) do
+      {:match, new_env} ->
+        # Pattern matched, evaluate body with new bindings
+        eval_expr(body, new_env)
+      
+      :no_match ->
+        # Try next clause
+        eval_match(value, rest, env)
+    end
+  end
+
+  # Pattern matching logic
+  defp match_pattern({:number, n, _, _}, value, env) when is_number(value) do
+    if n == value, do: {:match, env}, else: :no_match
+  end
+
+  defp match_pattern({:string, s, _, _}, value, env) when is_binary(value) do
+    if s == value, do: {:match, env}, else: :no_match
+  end
+
+  defp match_pattern({:bool, b, _, _}, value, env) when is_boolean(value) do
+    if b == value, do: {:match, env}, else: :no_match
+  end
+
+  defp match_pattern({:var, name, _, _}, value, env) do
+    # Variable pattern - binds value to name
+    {:match, Map.put(env, name, value)}
+  end
+
+  defp match_pattern({:array, elements, _, _}, value, env) when is_list(value) do
+    # Array pattern matching
+    if length(elements) == length(value) do
+      match_array_patterns(elements, value, env)
+    else
+      :no_match
+    end
+  end
+
+  defp match_pattern({:binop, :==, left, right}, _value, env) do
+    # Guard pattern - evaluate and check if true
+    with {:ok, lval} <- eval_expr(left, env),
+         {:ok, rval} <- eval_expr(right, env) do
+      if lval == rval, do: {:match, env}, else: :no_match
+    else
+      _ -> :no_match
+    end
+  end
+
+  defp match_pattern({:binop, :<, left, right}, _value, env) do
+    with {:ok, lval} <- eval_expr(left, env),
+         {:ok, rval} <- eval_expr(right, env) do
+      if is_number(lval) and is_number(rval) and lval < rval, 
+        do: {:match, env}, 
+        else: :no_match
+    else
+      _ -> :no_match
+    end
+  end
+
+  defp match_pattern({:binop, :>, left, right}, _value, env) do
+    with {:ok, lval} <- eval_expr(left, env),
+         {:ok, rval} <- eval_expr(right, env) do
+      if is_number(lval) and is_number(rval) and lval > rval, 
+        do: {:match, env}, 
+        else: :no_match
+    else
+      _ -> :no_match
+    end
+  end
+
+  defp match_pattern({:call, {:var, "_", _, _}, []}, _value, env) do
+    # Wildcard pattern - matches anything
+    {:match, env}
+  end
+
+  defp match_pattern(_pattern, _value, _env) do
+    :no_match
+  end
+
+  defp match_array_patterns([], [], env), do: {:match, env}
+  
+  defp match_array_patterns([p | p_rest], [v | v_rest], env) do
+    case match_pattern(p, v, env) do
+      {:match, new_env} -> match_array_patterns(p_rest, v_rest, new_env)
+      :no_match -> :no_match
+    end
+  end
+  
+  defp match_array_patterns(_, _, _env), do: :no_match
+
   @doc """
   Like eval/1 but raises on parse/compile error. Returns the result.
   """
@@ -273,5 +375,25 @@ defmodule Zixir do
       {:error, reason} when is_binary(reason) ->
         raise %Zixir.CompileError{message: reason}
     end
+  end
+
+  @doc """
+  Start the interactive REPL (Read-Eval-Print Loop).
+  
+  ## Example
+  
+      iex> Zixir.repl()
+      Welcome to Zixir REPL v0.1.0
+      Type :help for help, :quit to exit
+      
+      zixir> let x = 10
+      10
+      zixir> x + 5
+      15
+      zixir> :quit
+      Goodbye!
+  """
+  def repl(opts \\ []) do
+    Zixir.REPL.start(opts)
   end
 end

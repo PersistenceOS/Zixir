@@ -188,8 +188,8 @@ defmodule Zixir.LanguageAdvancedTest do
 
     test "array passed to engine function" do
       assert {:ok, 6.0} = Zixir.eval("engine.list_sum([1.0, 2.0, 3.0])")
-      # Note: engine.list_sum with integers returns integer (6), with floats returns float (6.0)
-      assert {:ok, 6} = Zixir.eval("engine.list_sum([1, 2, 3])")
+      # engine.list_sum always returns float when NIFs are available
+      assert {:ok, 6.0} = Zixir.eval("engine.list_sum([1, 2, 3])")
     end
   end
 

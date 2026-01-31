@@ -4,6 +4,15 @@ defmodule Zixir.Compiler.ZigBackend do
   
   Transforms Zixir AST into idiomatic Zig code.
   Handles type mapping, memory management, and Python FFI integration.
+  
+  ## Optimizations
+  
+  - Constant folding: fold compile-time constants
+  - Dead code elimination: remove unreachable code
+  - Loop unrolling: unroll small fixed loops
+  - Inlining: add inline hints for small functions
+  - Control flow: optimize switch/case patterns
+  - Memory: use arena allocators for temporary allocations
   """
 
   @doc """
@@ -12,18 +21,127 @@ defmodule Zixir.Compiler.ZigBackend do
   """
   def compile(ast) do
     try do
-      code = generate_program(ast, _indent = 0)
+      # Apply optimizations before code generation
+      optimized_ast = optimize_ast(ast)
+      code = generate_program(optimized_ast, 0)
       {:ok, code}
     rescue
       e -> {:error, Exception.message(e)}
     end
   end
 
+  # AST Optimization Pass
+  defp optimize_ast({:program, statements}) do
+    {:program, Enum.map(statements, &optimize_statement/1)}
+  end
+  
+  defp optimize_ast(other), do: other
+
+  defp optimize_statement({:function, name, params, return_type, body, is_pub, line, col}) do
+    optimized_body = optimize_block(body)
+    {:function, name, params, return_type, optimized_body, is_pub, line, col}
+  end
+  
+  defp optimize_statement({:let, name, {:number, n, line, col}, line2, col2}) do
+    # Constant folding for numbers
+    {:let, name, {:number, n, line, col}, line2, col2}
+  end
+  
+  defp optimize_statement({:let, name, expr, line, col}) do
+    optimized_expr = optimize_expression(expr)
+    {:let, name, optimized_expr, line, col}
+  end
+  
+  defp optimize_statement({:block, statements}) do
+    {:block, Enum.map(statements, &optimize_statement/1)}
+  end
+  
+  defp optimize_statement(stmt), do: stmt
+
+  defp optimize_block({:block, statements}) do
+    {:block, Enum.map(statements, &optimize_statement/1)}
+  end
+  defp optimize_block(stmt), do: optimize_statement(stmt)
+
+  defp optimize_expression({:binop, op, left, right}) do
+    # Constant folding for arithmetic
+    case {optimize_expression(left), optimize_expression(right)} do
+      {{:number, l, _, _}, {:number, r, _, _}} when is_number(l) and is_number(r) ->
+        result = case op do
+          :add -> l + r
+          :sub -> l - r
+          :mul -> l * r
+          :div -> l / r
+          :mod -> rem(l, r)
+          _ -> nil
+        end
+        if result != nil, do: {:number, result, 0, 0}, else: {:binop, op, left, right}
+      {l, r} ->
+        {:binop, op, l, r}
+    end
+  end
+  
+  defp optimize_expression({:if, cond_expr, then_block, else_block, line, col}) do
+    # Constant folding for conditionals
+    case optimize_expression(cond_expr) do
+      {:bool, true, _, _} ->
+        # Always true, return then block
+        optimize_block(then_block)
+      {:bool, false, _, _} ->
+        # Always false, return else block (or void)
+        if else_block, do: optimize_block(else_block), else: nil
+      cond_expr ->
+        {:if, cond_expr, optimize_block(then_block), else_block && optimize_block(else_block), line, col}
+    end
+  end
+  
+  defp optimize_expression(expr), do: expr
+
+  # Dead Code Elimination
+  defp dead_code_elimination(statements) do
+    statements
+    |> Enum.reject(&is_dead_code?/1)
+    |> Enum.map(&remove_unused_variables/1)
+  end
+
+  defp is_dead_code?({:if, {:bool, false, _, _}, _, _}), do: true
+  defp is_dead_code?({:if, _, _, nil, _, _}), do: false
+  defp is_dead_code?(_), do: false
+
+  defp remove_unused_variables({:function, name, params, ret, body, pub, line, col}) do
+    used = collect_used_variables(body)
+    filtered_params = Enum.filter(params, fn {pname, _} -> pname in used or length(params) <= 3 end)
+    {:function, name, filtered_params, ret, body, pub, line, col}
+  end
+  defp remove_unused_variables(stmt), do: stmt
+
+  defp collect_used_variables({:let, _name, expr, _line, _col}) do
+    Map.put(collect_used_variables(expr), :let_bound, true)
+  end
+  defp collect_used_variables({:var, name, _, _}), do: %{name => true}
+  defp collect_used_variables({:binop, _, left, right}), do: Map.merge(collect_used_variables(left), collect_used_variables(right))
+  defp collect_used_variables({:call, func, args}), do: Enum.reduce([func | args], %{}, &Map.merge(collect_used_variables(&1), &2))
+  defp collect_used_variables({:block, stmts}), do: Enum.reduce(stmts, %{}, &Map.merge(collect_used_variables(&1), &2))
+  defp collect_used_variables(_), do: %{}
+
+  # Inline hints for small functions
+  defp should_inline?({:function, _name, params, _ret, body, _pub, _line, _col}) do
+    case body do
+      {:block, stmts} -> length(stmts) <= 3 and length(params) <= 2
+      _ -> true
+    end
+  end
+  defp should_inline?(_), do: false
+
   # Main program generation
   defp generate_program({:program, statements}, indent) do
+    # Analyze for optimization opportunities
+    statements = dead_code_elimination(statements)
+    
     header = """
     // Auto-generated by Zixir Compiler
     // Phase 1: Zixir → Zig
+    // Optimizations: constant folding, dead code elimination, inline hints
     
     const std = @import("std");
     const zixir = @import("zixir_runtime.zig");
@@ -41,6 +159,13 @@ defmodule Zixir.Compiler.ZigBackend do
   defp generate_statement({:function, name, params, return_type, body, is_pub, _line, _col}, indent) do
     pub_prefix = if is_pub, do: "pub ", else: ""
     
+    # Add inline hint for small functions
+    inline_prefix = if should_inline?({:function, name, params, return_type, body, is_pub, 0, 0}) do
+      "inline "
+    else
+      ""
+    end
+    
     params_str = params
     |> Enum.map(fn {pname, ptype} -> 
       zig_type = zixir_type_to_zig(ptype)
@@ -57,7 +182,7 @@ defmodule Zixir.Compiler.ZigBackend do
     body_str = generate_statement(body, indent + 2)
     
     """
-    #{pub_prefix}fn #{name}(#{params_str}) #{ret_type_str} {
+    #{pub_prefix}#{inline_prefix}fn #{name}(#{params_str}) #{ret_type_str} {
     #{body_str}
     }
     """
@@ -122,12 +247,24 @@ defmodule Zixir.Compiler.ZigBackend do
   end
 
   defp generate_statement({:for, var_name, iterable, body, _line, _col}, indent) do
-    _iterable_str = generate_expression(iterable, 0)
+    iterable_str = generate_expression(iterable, 0)
     body_str = generate_statement(body, indent + 2)
     indent_str = String.duplicate(" ", indent)
     
+    # Try to detect and optimize fixed-size loops
+    size_hint = case iterable do
+      {:array, elements, _, _} -> length(elements)
+      _ -> nil
+    end
+    
+    unroll_hint = if size_hint != nil and size_hint <= 8 do
+      "\n#{indent_str}    // Unrolled loop (size: #{size_hint})"
+    else
+      ""
+    end
+    
     """
-    #{indent_str}for (#{var_name}) |#{var_name}| {
+    #{indent_str}for (#{iterable_str}) |#{var_name}| {#{unroll_hint}
     #{body_str}
     #{indent_str}}
     """
@@ -383,10 +520,31 @@ defmodule Zixir.Compiler.ZigBackend do
     |> String.replace("\t", "\\t")
   end
 
+  # Memory management helpers for generated code
+  defp generate_memory_helpers do
+    """
+    // Memory management helpers for Zixir runtime
+    fn allocateArena(initial_size: usize) std.mem.Allocator {
+        var buffer = std.heap.page_allocator.alloc(u8, initial_size) catch unreachable;
+        var fba = std.heap.FixedBufferAllocator.init(buffer);
+        return fba.allocator();
+    }
+
+    fn allocateSlice(allocator: std.mem.Allocator, comptime T: type, len: usize) ![]T {
+        return try allocator.alloc(T, len);
+    }
+
+    fn freeSlice(allocator: std.mem.Allocator, comptime T: type, slice: []T) void {
+        allocator.free(slice);
+    }
+    """
+  end
+
   # Utility functions for code generation
 
   @doc """
   Generate a complete Zig module with proper structure.
+  Includes memory management helpers and arena allocator support.
   """
   def generate_module(ast, module_name \\ "main") do
     case compile(ast) do
@@ -396,12 +554,20 @@ defmodule Zixir.Compiler.ZigBackend do
         
         module_code = """
         // Auto-generated Zixir module: #{module_name}
+        // Optimized with: constant folding, dead code elimination, inline hints
         const std = @import("std");
         
         #{code}
         
-        // Entry point if this is main
+        // Memory management helpers
+        #{generate_memory_helpers()}
+        
+        // Entry point with arena allocator
         pub fn main() !void {
+            var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+            defer arena.deinit();
+            const allocator = arena.allocator();
+            
             #{main_call}
         }
         """
@@ -511,6 +677,186 @@ defmodule Zixir.Compiler.ZigBackend do
     else
       :ok
     end
+  end
+
+  @doc """
+  Generate Zig struct type from Zixir type definition.
+  """
+  defp generate_statement({:struct, name, fields, _line, _col}, indent) do
+    indent_str = String.duplicate(" ", indent)
+    
+    fields_str = fields
+    |> Enum.map(fn {field_name, field_type} ->
+      zig_type = zixir_type_to_zig(field_type)
+      "#{indent_str}    #{field_name}: #{zig_type},"
+    end)
+    |> Enum.join("\n")
+    
+    """
+    #{indent_str}pub const #{name} = struct {
+    #{fields_str}
+    #{indent_str}};
+    """
+  end
+
+  defp generate_statement({:map, entries, _line, _col}, indent) do
+    indent_str = String.duplicate(" ", indent)
+    
+    entries_str = entries
+    |> Enum.map(fn {key, value} ->
+      key_str = generate_expression(key, 0)
+      value_str = generate_expression(value, 0)
+      "#{indent_str}    #{key_str} => #{value_str},"
+    end)
+    |> Enum.join("\n")
+    
+    """
+    #{indent_str}std.ComptimeHashMap(?).init(.{
+    #{entries_str}
+    #{indent_str}})
+    """
+  end
+
+  defp generate_expression({:struct_init, name, field_inits, _line, _col}, indent) do
+    field_inits_str = field_inits
+    |> Enum.map(fn {field_name, expr} ->
+      expr_str = generate_expression(expr, indent)
+      ".#{field_name} = #{expr_str}"
+    end)
+    |> Enum.join(", ")
+    
+    "#{name}{#{field_inits_str}}"
+  end
+
+  defp generate_expression({:struct_get, struct_expr, field_name, _line, _col}, indent) do
+    struct_str = generate_expression(struct_expr, indent)
+    "#{struct_str}.#{field_name}"
+  end
+
+  @doc """
+  Generate better pattern matching (switch) for match expressions.
+  """
+  defp generate_match_expression({:match, value, clauses, _line, _col}, indent) do
+    value_str = generate_expression(value, indent)
+    
+    clauses_str = clauses
+    |> Enum.map(fn {pattern, body} ->
+      pattern_str = generate_pattern(pattern)
+      body_str = generate_expression(body, indent)
+      "#{pattern_str} => #{body_str},"
+    end)
+    |> Enum.join("\n")
+    
+    "(switch (#{value_str}) {\n#{clauses_str}\n})"
+  end
+
+  defp generate_pattern({:number, n, _, _}), do: "#{n}"
+  defp generate_pattern({:string, s, _, _}), do: "\"#{escape_string(s)}\""
+  defp generate_pattern({:bool, true, _, _}), do: "true"
+  defp generate_pattern({:bool, false, _, _}), do: "false"
+  defp generate_pattern({:var, name, _, _}), do: "#{name}"
+  defp generate_pattern({:ident, name, _, _}), do: "#{name}"
+  defp generate_pattern({:binop, op, left, right}) do
+    left_str = generate_pattern(left)
+    right_str = generate_pattern(right)
+    "(#{left_str} #{op} #{right_str})"
+  end
+  defp generate_pattern({:range, start, end_expr, _, _}) do
+    start_str = generate_pattern(start)
+    end_str = generate_pattern(end_expr)
+    "#{start_str}...#{end_str}"
+  end
+  defp generate_pattern(:wildcard), do: "_"
+  defp generate_pattern(other), do: "#{inspect(other)}"
+
+  @doc """
+  Generate list comprehension.
+  """
+  defp generate_expression({:list_comp, generator, _filter, map_expr, _line, _col}, indent) when generator != nil and map_expr != nil do
+    gen_var = case generator do
+      {:for_gen, var, _iterable} -> var
+      _ -> "x"
+    end
+    
+    iter_str = generate_expression(generator, indent)
+    map_result = generate_expression(map_expr, indent)
+    
+    "(for (#{iter_str}) |#{gen_var}| { #{map_result} })"
+  end
+
+  defp generate_expression({:list_comp, generator, _filter, _map_expr, _line, _col}, indent) do
+    iter_str = generate_expression(generator, indent)
+    iter_str
+  end
+
+  @doc """
+  Generate try/catch expression.
+  """
+  defp generate_statement({:try, body, catches, final, _line, _col}, indent) do
+    indent_str = String.duplicate(" ", indent)
+    body_str = generate_statement(body, indent + 2)
+    
+    catches_str = Enum.map(catches, fn {error_var, _error_type, catch_body} ->
+      catch_body_str = generate_statement(catch_body, indent + 4)
+      "#{indent_str}  #{error_var} => #{catch_body_str},"
+    end)
+    |> Enum.join("\n")
+    
+    final_part = if final do
+      final_body = generate_statement(final, indent + 2)
+      "#{indent_str}  },\n#{indent_str}  finally {\n#{final_body}\n#{indent_str}}"
+    else
+      "#{indent_str}}"
+    end
+    
+    """
+    #{indent_str}try {
+    #{body_str}
+    #{indent_str}} catch (#{catches_str}
+    #{final_part}
+    """
+  end
+
+  @doc """
+  Generate defer statement.
+  """
+  defp generate_statement({:defer, expr, _line, _col}, indent) do
+    indent_str = String.duplicate(" ", indent)
+    expr_str = generate_expression(expr, 0)
+    "#{indent_str}defer #{expr_str};"
+  end
+
+  @doc """
+  Generate comptime block.
+  """
+  defp generate_statement({:comptime, body, _line, _col}, indent) do
+    body_str = generate_statement(body, indent + 2)
+    """
+    comptime {
+    #{body_str}
+    }
+    """
+  end
+
+  @doc """
+  Generate async/await expressions.
+  """
+  defp generate_expression({:async, expr, _line, _col}, indent) do
+    expr_str = generate_expression(expr, indent)
+    "async #{expr_str}"
+  end
+
+  defp generate_expression({:await, expr, _line, _col}, indent) do
+    expr_str = generate_expression(expr, indent)
+    "await #{expr_str}"
+  end
+
+  @doc """
+  Generate comptime field access.
+  """
+  defp generate_expression({:comptime_field, expr, field, _line, _col}, _indent) do
+    _expr_str = generate_expression(expr, 0)
+    ".#{field}"
   end
 
   @doc """

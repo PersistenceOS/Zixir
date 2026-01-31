@@ -51,8 +51,6 @@ defmodule Zixir.Quality do
 
   require Logger
 
-  alias Zixir.Quality.{Validator, AnomalyDetector, AutoFix}
-
   @default_config %{
     auto_fix: false,
     alert_on_violation: true,
@@ -317,10 +315,16 @@ defmodule Zixir.Quality do
         
         {:null_rate, max_null_rate} ->
           if is_nil(acc_value) do
-            # Track null rate separately
-            {acc_value, 
-              [%{field: field, type: :null_value, max_rate: max_null_rate} | violations],
-              fixes}
+            if auto_fix do
+              # Impute null value using the specified method
+              fixed = impute_null_value(field)
+              {fixed, violations,
+                [%{field: field, type: :null_value_imputed, from: nil, to: fixed} | fixes]}
+            else
+              {acc_value, 
+                [%{field: field, type: :null_value, max_rate: max_null_rate} | violations],
+                fixes}
+            end
           else
             {acc_value, violations, fixes}
           end
@@ -329,23 +333,40 @@ defmodule Zixir.Quality do
           if acc_value in allowed do
             {acc_value, violations, fixes}
           else
-            {acc_value, 
-              [%{field: field, type: :invalid_value, allowed: allowed, got: acc_value} | violations],
-              fixes}
+            if auto_fix do
+              # Find closest allowed value
+              fixed = find_closest_value(acc_value, allowed)
+              {fixed, violations,
+                [%{field: field, type: :invalid_value_fixed, from: acc_value, to: fixed} | fixes]}
+            else
+              {acc_value, 
+                [%{field: field, type: :invalid_value, allowed: allowed, got: acc_value} | violations],
+                fixes}
+            end
           end
         
         {:format, regex} ->
           if is_binary(acc_value) and Regex.match?(regex, acc_value) do
             {acc_value, violations, fixes}
           else
-            {acc_value, 
-              [%{field: field, type: :format_error, pattern: regex, got: acc_value} | violations],
-              fixes}
+            if auto_fix do
+              # Try to fix format by extracting matching part or using default
+              fixed = fix_format(acc_value, regex)
+              {fixed, violations,
+                [%{field: field, type: :format_error_fixed, from: acc_value, to: fixed} | fixes]}
+            else
+              {acc_value, 
+                [%{field: field, type: :format_error, pattern: regex, got: acc_value} | violations],
+                fixes}
+            end
           end
         
         {:outliers, _method} ->
-          # Outlier detection done at dataset level, not individual value
-          {acc_value, violations, fixes}
+          if is_number(acc_value) do
+            {acc_value, violations, fixes}
+          else
+            {acc_value, violations, fixes}
+          end
         
         _ ->
           {acc_value, violations, fixes}
@@ -378,6 +399,41 @@ defmodule Zixir.Quality do
   defp coerce_type(value, :string) when not is_binary(value), do: {:ok, to_string(value)}
   defp coerce_type(value, _), do: {:ok, value}
 
+  defp find_closest_value(value, allowed) when is_number(value) do
+    allowed
+    |> Enum.filter(&is_number/1)
+    |> Enum.min_by(&abs(&1 - value), fn -> List.first(allowed) || "" end)
+  end
+  defp find_closest_value(value, allowed) when is_binary(value) do
+    # For strings, find by similarity (first character match or first allowed)
+    case Enum.find(allowed, fn a -> String.starts_with?(to_string(a), String.first(value) || "") end) do
+      nil -> List.first(allowed) || ""
+      found -> found
+    end
+  end
+  defp find_closest_value(_value, allowed), do: List.first(allowed) || ""
+
+  defp fix_format(nil, _regex), do: ""
+  defp fix_format(value, regex) when is_binary(value) do
+    # Try to extract a matching substring
+    case Regex.run(regex, value) do
+      [match | _] -> match
+      _ -> ""
+    end
+  end
+  defp fix_format(_value, _regex), do: ""
+
+  defp impute_null_value(_field) do
+    # Simple imputation - in a full implementation, this would use field-specific statistics
+    # For now, use sensible defaults based on type expectations
+    case @default_config.imputation_method do
+      :mean -> 0.0
+      :median -> 0.0
+      :mode -> 0
+      _ -> 0.0
+    end
+  end
+
   defp calculate_quality_score(violation_count, total_fields) do
     if total_fields == 0 do
       1.0
@@ -387,37 +443,50 @@ defmodule Zixir.Quality do
   end
 
   defp infer_schema(data, strict \\ false) do
-    # Infer schema from first row
-    sample = List.first(data) || %{}
+    # Handle both single map and list of maps
+    sample = if is_map(data), do: data, else: List.first(data) || %{}
     
-    Enum.map(sample, fn {key, value} ->
-      type = infer_type(value)
-      
-      rules = if strict do
-        [type: type]
-      else
-        rules = [type: type]
+    if is_map(sample) do
+      Enum.map(sample, fn {key, value} ->
+        type = infer_type(value)
         
-        # Add range for numbers
-        rules = if type in [:integer, :float] do
-          values = Enum.map(data, &Map.get(&1, key)) |> Enum.reject(&is_nil/1)
-          if length(values) > 0 do
-            min_val = Enum.min(values)
-            max_val = Enum.max(values)
-            [{:range, min_val..max_val} | rules]
+        rules = if strict do
+          [type: type]
+        else
+          rules = [type: type]
+          
+          # Add range for numbers
+          rules = if type in [:integer, :float] do
+            values = if is_map(data) do
+              [Map.get(data, key)]
+            else
+              Enum.map(data, &Map.get(&1, key)) |> Enum.reject(&is_nil/1)
+            end
+            if length(values) > 0 and Enum.any?(values, &(&1 != nil)) do
+              non_nil_values = Enum.reject(values, &is_nil/1)
+              if length(non_nil_values) > 0 do
+                min_val = Enum.min(non_nil_values)
+                max_val = Enum.max(non_nil_values)
+                [{:range, min_val..max_val} | rules]
+              else
+                rules
+              end
+            else
+              rules
+            end
           else
             rules
           end
-        else
+          
           rules
         end
         
-        rules
-      end
-      
-      {key, rules}
-    end)
-    |> Enum.into(%{})
+        {key, rules}
+      end)
+      |> Enum.into(%{})
+    else
+      %{}
+    end
   end
 
   defp infer_type(value) when is_integer(value), do: :integer

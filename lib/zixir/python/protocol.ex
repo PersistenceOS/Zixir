@@ -185,17 +185,19 @@ defmodule Zixir.Python.Protocol do
     for <<value::native-signed-32 <- data>>, do: value
   end
 
-  defp reshape_if_needed(values, [dim1]) do
+  defp reshape_if_needed(values, [_dim1]) do
     # 1D array - already correct shape
     values
   end
   
-  defp reshape_if_needed(values, [rows, cols]) do
+  defp reshape_if_needed(values, [_rows, _cols]) do
     # 2D array - chunk into rows
-    Enum.chunk_every(values, cols)
+    values
+    |> length()
+    |> then(&Enum.chunk_every(values, &1))
   end
   
-  defp reshape_if_needed(values, [d1, d2, d3]) do
+  defp reshape_if_needed(values, [_d1, d2, d3]) do
     # 3D array
     values
     |> Enum.chunk_every(d2 * d3)

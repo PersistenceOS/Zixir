@@ -195,6 +195,7 @@ defmodule Zixir.Stream do
   """
   def run(source, opts \\ []) do
     timeout = Keyword.get(opts, :timeout, :infinity)
+    _ = timeout
     
     case source do
       %Zixir.Stream.Source{} ->
@@ -225,7 +226,7 @@ defmodule Zixir.Stream do
   Returns a task that can be awaited.
   """
   def async(func, opts \\ []) when is_function(func) do
-    timeout = Keyword.get(opts, :timeout, 30_000)
+    _timeout = Keyword.get(opts, :timeout, 30_000)
     
     Task.async(fn ->
       try do
@@ -401,7 +402,7 @@ defmodule Zixir.Stream do
     end
   end
 
-  defp execute_transformation(%Zixir.Stream.Transformation{source: source, operation: :parallel, max_concurrency: max}, opts) do
+  defp execute_transformation(%Zixir.Stream.Transformation{source: source, operation: :parallel, max_concurrency: _max}, opts) do
     case run(source, opts) do
       {:ok, items} when is_list(items) ->
         # Process in parallel

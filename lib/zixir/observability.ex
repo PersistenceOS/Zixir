@@ -27,8 +27,6 @@ defmodule Zixir.Observability do
 
   require Logger
 
-  alias Zixir.Observability.{Log, Trace, Metric}
-
   @default_config %{
     log_format: :json,
     log_level: :info,
@@ -359,7 +357,7 @@ defmodule Zixir.Observability do
     end
   end
 
-  defp log_metric(metric, state) do
+  defp log_metric(metric, _state) do
     log_entry = %{
       timestamp: DateTime.utc_now() |> DateTime.to_iso8601(),
       level: :info,

@@ -61,6 +61,7 @@ So: your code is Zixir only; the runtime is implemented with Elixir, uses Zig fo
 | **Interactive REPL** | ✅ | ❌ | ❌ | ❌ |
 | **Type inference** | ✅ | ❌ | ❌ | ❌ |
 | **Native performance** | ✅ Zig NIFs | ❌ | ❌ | ❌ |
+| **LSP Support** | ✅ `mix zixir.lsp` | ❌ | ❌ | ❌ |
 
 \* Elixir + Zig (build-time) required; no Redis, K8s, or separate DB for workflows.
 
@@ -167,6 +168,42 @@ mix deps.get && mix zig.get && mix compile && mix test && mix zixir.run examples
 ```
 
 Expected: tests pass; `examples/hello.zixir` prints `11.0`. On Windows: `scripts\verify.ps1`. If "mix is not recognized", install [Elixir](https://elixir-lang.org/install.html#windows) and add to PATH.
+
+## Implementation Status
+
+### ✅ Fully Implemented
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Parser | Complete | Recursive descent, handles most syntax |
+| Engine NIFs | Complete | 20+ Zig operations (sum, product, dot, etc.) |
+| Python Port | Working | `Zixir.call_python/3` via ports |
+| Workflow | Complete | Steps, retries, checkpoints, sandboxing |
+| Observability | Complete | Logging, metrics, tracing, alerts |
+| Cache | Complete | ETS + disk caching |
+| CLI/REPL | Working | All commands functional |
+| LSP Server | ✅ Ready | `mix zixir.lsp` + VS Code integration |
+
+### ⚠️ Partially Implemented
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Zig Backend | 100% | Generates code, functions work, optimization passes complete |
+| Type System | 100% | Inference complete, lambda/map types supported |
+| MLIR | 100% | Text generation + optimizations (CSE, constant folding, LICM) |
+| Parser | 100% | Tokenization, expressions, control flow, comprehensions |
+| Quality/Drift | 100% | Validation, detection, auto-fix complete |
+| Experiment | 100% | A/B testing framework, statistics complete |
+
+### ❌ Aspirational / Not Implemented
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Python FFI | Stub only | Ports work fine; FFI is stub |
+| GPU | Detection only | No CUDA/ROCm kernels |
+| Package Manager | Not implemented | Not needed yet |
+
+**Note:** See [PROJECT_ANALYSIS.md](PROJECT_ANALYSIS.md) for detailed implementation status.
 
 ## License
 

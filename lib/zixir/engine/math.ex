@@ -523,7 +523,7 @@ defmodule Zixir.Engine.Math do
     # Matrix multiplication in Elixir
     for i <- 0..(a_rows-1) do
       for j <- 0..(b_cols-1) do
-        sum = for k <- 0..(a_cols-1) do
+        for k <- 0..(a_cols-1) do
           ai = Enum.at(a, i * a_cols + k, 0.0)
           bk = Enum.at(b, k * b_cols + j, 0.0)
           ai * bk

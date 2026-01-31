@@ -148,7 +148,11 @@ defmodule Zixir.Compiler.TypeSystemTest do
   describe "check_type/3" do
     test "checks compatible types" do
       expr = {:number, 42, 1, 1}
-      # Returns error because type inference returns :unknown for untyped AST
+      assert :ok = TypeSystem.check_type(expr, :int, %{})
+    end
+
+    test "rejects incompatible types" do
+      expr = {:string, "hello", 1, 1}
       assert {:error, _} = TypeSystem.check_type(expr, :int, %{})
     end
   end

@@ -653,4 +653,220 @@ defmodule Zixir.Compiler.Parser do
   defp parse_block_or_expr(tokens) do
     parse_expression(tokens)
   end
+
+  @doc """
+  Parse list comprehension: [expr for var in iterable if condition]
+  """
+  defp parse_list_comp([{:for, line, col} | rest]) do
+    parse_list_comp_impl(rest, line, col, nil, nil)
+  end
+
+  defp parse_list_comp(tokens) do
+    {nil, tokens}
+  end
+
+  defp parse_list_comp_impl([{:ident, var_name, _, _} | [{:in, _, _} | rest]], line, col, _generator, _filter) do
+    {iterable, rest2} = parse_expression(rest)
+    
+    case rest2 do
+      [{:if, _if_line, _if_col} | rest_after_if] ->
+        {filter, rest_final} = parse_expression(rest_after_if)
+        {{:list_comp, {:for_gen, var_name, iterable}, filter, nil, line, col}, rest_final}
+      
+      _ ->
+        {{:list_comp, {:for_gen, var_name, iterable}, nil, nil, line, col}, rest2}
+    end
+  end
+
+  defp parse_list_comp_impl(tokens, line, col, generator, filter) do
+    {map_expr, rest} = parse_expression(tokens)
+    {{:list_comp, generator, filter, map_expr, line, col}, rest}
+  end
+
+  @doc """
+  Parse map literal: {key => value, ...}
+  """
+  defp parse_map_literal([{:op, "{", line, col} | rest]) do
+    {entries, rest2} = parse_map_entries(rest)
+    rest = case rest2 do
+      [{:op, "}", _, _} | r] -> r
+      _ -> rest2
+    end
+    {{:map, entries, line, col}, rest}
+  end
+
+  defp parse_map_literal(tokens), do: {nil, tokens}
+
+  defp parse_map_entries(tokens), do: parse_map_entries_impl(tokens, [])
+
+  defp parse_map_entries_impl([{:op, "}", _, _} | _] = tokens, acc), do: {Enum.reverse(acc), tokens}
+
+  defp parse_map_entries_impl(tokens, acc) do
+    {key, rest} = parse_expression(tokens)
+    rest = case rest do
+      [{:op, "=", _, _}, {:op, ">", _, _} | r] -> r
+      _ -> rest
+    end
+    {value, rest2} = parse_expression(rest)
+    
+    case rest2 do
+      [{:op, ",", _, _} | after_comma] -> parse_map_entries_impl(after_comma, [{key, value} | acc])
+      [{:op, "}", _, _} | _] -> {Enum.reverse([{key, value} | acc]), rest2}
+      _ -> {Enum.reverse([{key, value} | acc]), rest2}
+    end
+  end
+
+  @doc """
+  Parse struct definition: struct { field: Type, ... }
+  """
+  defp parse_struct([{:ident, name, _, _} | [{:op, "{", line, col} | rest]]) do
+    {fields, rest2} = parse_struct_fields(rest)
+    rest = case rest2 do
+      [{:op, "}", _, _} | r] -> r
+      _ -> rest2
+    end
+    {{:struct, name, fields, line, col}, rest}
+  end
+
+  defp parse_struct(tokens), do: {nil, tokens}
+
+  defp parse_struct_fields(tokens), do: parse_struct_fields_impl(tokens, [])
+
+  defp parse_struct_fields_impl([{:op, "}", _, _} | _] = tokens, acc), do: {Enum.reverse(acc), tokens}
+
+  defp parse_struct_fields_impl(tokens, acc) do
+    case tokens do
+      [{:ident, fname, _, _} | [{:op, ":", _, _} | rest_after_colon]] ->
+        {ftype, rest} = parse_type_expression(rest_after_colon)
+        
+        case rest do
+          [{:op, ",", _, _} | after_comma] -> parse_struct_fields_impl(after_comma, [{fname, ftype} | acc])
+          [{:op, "}", _, _} | _] -> {Enum.reverse([{fname, ftype} | acc]), rest}
+          _ -> {Enum.reverse([{fname, ftype} | acc]), rest}
+        end
+      
+      _ -> {Enum.reverse(acc), tokens}
+    end
+  end
+
+  defp parse_type_expression([{:ident, type_name, _, _} | rest]) do
+    {{:type, type_name}, rest}
+  end
+
+  defp parse_type_expression([{:op, "[", _, _} | [{:op, "]", _, _} | rest]]) do
+    {{:type, :array, {:type, :auto}}, rest}
+  end
+
+  defp parse_type_expression([{:op, "[", _, _} | rest]) do
+    {elem_type, rest2} = parse_type_expression(rest)
+    rest = case rest2 do
+      [{:op, "]", _, _} | r] -> r
+      _ -> rest2
+    end
+    {{:type, :array, elem_type}, rest}
+  end
+
+  defp parse_type_expression(tokens), do: {{:type, :auto}, tokens}
+
+  @doc """
+  Parse try/catch expression.
+  """
+  defp parse_try([{:op, "{", line, col} | rest]) do
+    {body, rest2} = parse_block(rest)
+    
+    case rest2 do
+      [{:catch, _catch_line, _catch_col} | rest_after_catch] ->
+        {catches, rest_final} = parse_catches(rest_after_catch)
+        {{:try, body, catches, line, col}, rest_final}
+      
+      _ ->
+        {{:try, body, [], line, col}, rest2}
+    end
+  end
+
+  defp parse_try(tokens), do: {nil, tokens}
+
+  defp parse_catches(tokens), do: parse_catches_impl(tokens, [])
+
+  defp parse_catches_impl([{:op, "}", _, _} | _] = tokens, acc), do: {Enum.reverse(acc), tokens}
+
+  defp parse_catches_impl(tokens, acc) do
+    case tokens do
+      [{:ident, error_var, _, _} | [{:op, ":", _, _} | rest_after_colon]] ->
+        {error_type, rest} = parse_type_expression(rest_after_colon)
+        {catch_body, rest2} = parse_block(rest)
+        
+        case rest2 do
+          [{:op, ",", _, _} | after_comma] -> parse_catches_impl(after_comma, [{error_var, error_type, catch_body} | acc])
+          [{:op, "}", _, _} | _] -> {Enum.reverse([{error_var, error_type, catch_body} | acc]), rest2}
+          _ -> {Enum.reverse([{error_var, error_type, catch_body} | acc]), rest2}
+        end
+      
+      _ -> {Enum.reverse(acc), tokens}
+    end
+  end
+
+  @doc """
+  Parse async/await expressions.
+  """
+  defp parse_async([{:ident, name, line, col} | [{:op, "(", _, _} | _] = rest]) do
+    case parse_expression([{:ident, name, line, col} | rest]) do
+      {{:call, _, _} = call_expr, rest2} ->
+        {{:async, call_expr, line, col}, rest2}
+      {expr, rest2} ->
+        {expr, rest2}
+    end
+  end
+
+  defp parse_async(tokens), do: {nil, tokens}
+
+  defp parse_await([{:ident, name, line, col} | [{:op, "(", _, _} | _] = rest]) do
+    case parse_expression([{:ident, name, line, col} | rest]) do
+      {{:call, _, _} = call_expr, rest2} ->
+        {{:await, call_expr, line, col}, rest2}
+      {expr, rest2} ->
+        {expr, rest2}
+    end
+  end
+
+  defp parse_await(tokens), do: {nil, tokens}
+
+  @doc """
+  Parse range expression: start..end
+  """
+  defp parse_range([{:number, n1, l1, c1} | [{:op, ".", _, _}, {:op, ".", _, _} | rest]]) do
+    {n2, rest2, new_col} = read_number(rest, c1 + 2, false)
+    {{:range, {:number, n1, l1, c1}, {:number, n2, l1, new_col}, l1, c1}, rest2}
+  end
+
+  defp parse_range([{:ident, name, line, col} | [{:op, ".", _, _}, {:op, ".", _, _} | rest]]) do
+    {end_expr, rest2} = parse_expression(rest)
+    {{:range, {:var, name, line, col}, end_expr, line, col}, rest2}
+  end
+
+  defp parse_range(tokens), do: {nil, tokens}
+
+  @doc """
+  Parse defer statement.
+  """
+  defp parse_defer([{:op, "{", line, col} | rest]) do
+    {expr, rest2} = parse_expression(rest)
+    rest = case rest2 do
+      [{:op, "}", _, _} | r] -> r
+      _ -> rest2
+    end
+    {{:defer, expr, line, col}, rest}
+  end
+
+  defp parse_defer(tokens), do: {nil, tokens}
+
+  @doc """
+  Parse comptime block.
+  """
+  defp parse_comptime([{:op, "{", line, col} | rest]) do
+    {body, rest2} = parse_block(rest)
+    {{:comptime, body, line, col}, rest2}
+  end
+
+  defp parse_comptime(tokens), do: {nil, tokens}
 end

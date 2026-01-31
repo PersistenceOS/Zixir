@@ -319,7 +319,7 @@ defmodule Zixir.Modules do
     end)
     
     # Resolve all imports
-    resolved_imports = Enum.reduce(imports, [], fn {:import, import_path, line, col}, acc ->
+    resolved_imports = Enum.reduce(imports, [], fn {:import, import_path, _line, _col}, acc ->
       case resolve(import_path, path) do
         {:ok, module} -> [{import_path, module} | acc]
         {:error, reason} -> 

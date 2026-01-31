@@ -318,7 +318,7 @@ defmodule Zixir.Workflow do
     end
   end
 
-  defp execute_step(%Step{} = step, state, execution, workflow_state, opts) do
+  defp execute_step(%Step{} = step, state, _execution, workflow_state, _opts) do
     retry_policy = get_retry_policy(step, workflow_state)
     
     attempt_step(step, state, retry_policy, 0)
@@ -378,7 +378,7 @@ defmodule Zixir.Workflow do
     end
   end
 
-  defp apply_step_function(func, state) when is_function(func, 0) do
+  defp apply_step_function(func, _state) when is_function(func, 0) do
     func.()
   end
 

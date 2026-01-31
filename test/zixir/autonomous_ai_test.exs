@@ -280,7 +280,8 @@ defmodule Zixir.AutonomousAITest do
       
       result = Zixir.Quality.validate(data, schema, auto_fix: false)
       
-      assert result.quality_score == 2.0 / 3.0
+      # Use approximate comparison for floating point
+      assert_in_delta result.quality_score, 2.0 / 3.0, 0.0001
     end
 
     test "detect outliers with z-score" do

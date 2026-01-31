@@ -59,7 +59,7 @@ defmodule Zixir.REPL do
   @doc """
   Start the interactive REPL.
   """
-  def start(opts \\ []) do
+  def start(_opts) do
     IO.puts(@welcome_message)
     
     initial_state = %{

@@ -44,13 +44,12 @@ defmodule Zixir.Drift do
 
   require Logger
 
-  alias Zixir.Drift.{Detector, Baseline}
-
   @default_config %{
     window_size: 1000,        # Number of predictions to compare
     check_interval: 3600,     # Check every hour (seconds)
     methods: [:ks_test, :psi], # Default detection methods
     auto_alert: true,
+    auto_check: false,        # Disable auto checking by default
     severity_thresholds: %{
       low: 0.05,
       medium: 0.10,
@@ -521,7 +520,7 @@ defmodule Zixir.Drift do
     end
   end
 
-  defp get_recent_predictions(pid, existing) do
+  defp get_recent_predictions(_pid, existing) do
     # In real implementation, would fetch from stream
     # For now, return last 100
     Enum.take(existing, -100)

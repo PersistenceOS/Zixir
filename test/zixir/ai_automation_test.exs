@@ -59,8 +59,9 @@ defmodule Zixir.AIAutomationTest do
 
     test "workflow with retries" do
       attempt_count = :counters.new(1, [:atomics])
+      workflow_name = "retry_test_#{:erlang.unique_integer()}"
       
-      workflow = Zixir.Workflow.new("retry_test")
+      workflow = Zixir.Workflow.new(workflow_name)
       |> Zixir.Workflow.add_step("flaky", fn ->
         :counters.add(attempt_count, 1, 1)
         if :counters.get(attempt_count, 1) < 3 do
@@ -233,8 +234,11 @@ defmodule Zixir.AIAutomationTest do
       Zixir.Observability.increment_counter("test_counter")
       Zixir.Observability.record_timing("test_timing", 50)
       
-      {:ok, metrics} = Zixir.Observability.get_metrics()
+      metrics = Zixir.Observability.get_metrics()
       assert is_map(metrics)
+      assert Map.has_key?(metrics, "test_metric")
+      assert Map.has_key?(metrics, "test_counter")
+      assert Map.has_key?(metrics, "test_timing")
     end
 
     test "timing execution" do

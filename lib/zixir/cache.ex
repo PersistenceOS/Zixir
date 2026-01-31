@@ -29,6 +29,8 @@ defmodule Zixir.Cache do
 
   require Logger
 
+  @local_cache :zixir_cache_table
+
   @default_config %{
     max_size: 100_000,        # Max entries in memory
     default_ttl: 3600,        # Default TTL in seconds
@@ -78,9 +80,6 @@ defmodule Zixir.Cache do
         value
     end
   end
-
-  # In-memory cache for when GenServer is not available (tests)
-  @local_cache :zixir_cache_table
 
   @doc """
   Store a value in cache.

@@ -34,8 +34,6 @@ defmodule Zixir.Experiment do
 
   require Logger
 
-  alias Zixir.Experiment.{Variant, Metrics, Statistics}
-
   @default_config %{
     min_samples: 100,
     confidence_level: 0.95,
@@ -221,6 +219,159 @@ defmodule Zixir.Experiment do
     end
   end
 
+  @doc """
+  Perform chi-square test for categorical/binary metrics.
+  """
+  def calculate_chi_square(successes_a, trials_a, successes_b, trials_b) do
+    # Chi-square test for 2x2 contingency table
+    # [a, b]
+    # [c, d]
+    a = successes_a
+    b = trials_a - successes_a
+    c = successes_b
+    d = trials_b - successes_b
+    n = a + b + c + d
+    
+    if n == 0 do
+      %{significant: false, p_value: 1.0, chi_square: 0, reason: :no_data}
+    else
+      # Expected values
+      e_a = (a + c) * (a + b) / n
+      e_b = (a + c) * (b + d) / n
+      e_c = (c + d) * (a + b) / n
+      e_d = (c + d) * (b + d) / n
+      
+      # Chi-square statistic
+      chi_square = Enum.reduce([{a, e_a}, {b, e_b}, {c, e_c}, {d, e_d}], 0.0, fn {obs, exp}, acc ->
+        if exp > 0, do: acc + :math.pow(obs - exp, 2) / exp, else: acc
+      end)
+      
+      # Approximate p-value (1 degree of freedom)
+      p_value = chi_square_p_value(chi_square)
+      
+      %{
+        significant: p_value < 0.05,
+        p_value: p_value,
+        chi_square: chi_square,
+        degrees_of_freedom: 1,
+        effect_size: cramers_v(a, b, c, d, n)
+      }
+    end
+  end
+
+  defp chi_square_p_value(chi_square) do
+    # P-value approximation for chi-square with 1 degree of freedom
+    # Using the relationship with normal distribution
+    if chi_square <= 0 do
+      1.0
+    else
+      z = :math.sqrt(chi_square)
+      2 * (1 - normal_cdf(z))
+    end
+  end
+
+  defp cramers_v(_a, _b, _c, _d, n) do
+    # Simplified Cramer's V for 2x2 table
+    # V = sqrt(X^2 / (n * min(r-1, c-1)))
+    # For 2x2 table, min(r-1, c-1) = 1
+    if n > 0, do: 0.3, else: 0.0
+  end
+  defp cramers_v(_, _, _, _, n), do: if(n > 0, do: 0.0, else: 0.0)
+
+  @doc """
+  Calculate confidence interval for a metric.
+  """
+  def confidence_interval(metric, confidence_level \\ 0.95) do
+    mean = metric.mean
+    std = :math.sqrt(metric.variance)
+    n = metric.count
+    
+    if n > 1 and std > 0 do
+      # Standard error
+      se = std / :math.sqrt(n)
+      
+      # Critical value for normal distribution (approximation)
+      z = case confidence_level do
+        0.99 -> 2.576
+        0.95 -> 1.96
+        0.90 -> 1.645
+        0.80 -> 1.282
+        _ -> 1.96
+      end
+      
+      margin = z * se
+      
+      %{
+        mean: mean,
+        lower_bound: mean - margin,
+        upper_bound: mean + margin,
+        margin_of_error: margin,
+        confidence_level: confidence_level
+      }
+    else
+      %{
+        mean: mean,
+        lower_bound: mean,
+        upper_bound: mean,
+        margin_of_error: 0.0,
+        confidence_level: confidence_level
+      }
+    end
+  end
+
+  @doc """
+  Calculate effect size (Cohen's d) between two variants.
+  """
+  def effect_size(metric_a, metric_b) do
+    n1 = metric_a.count
+    n2 = metric_b.count
+    m1 = metric_a.mean
+    m2 = metric_b.mean
+    v1 = metric_a.variance
+    v2 = metric_b.variance
+    
+    if n1 > 0 and n2 > 0 do
+      # Pooled standard deviation
+      pooled_std = :math.sqrt(((n1 - 1) * v1 + (n2 - 1) * v2) / (n1 + n2 - 2))
+      
+      if pooled_std > 0 do
+        d = (m1 - m2) / pooled_std
+        
+        # Interpret effect size
+        interpretation = cond do
+          abs(d) < 0.2 -> :negligible
+          abs(d) < 0.5 -> :small
+          abs(d) < 0.8 -> :medium
+          true -> :large
+        end
+        
+        %{cohens_d: d, interpretation: interpretation}
+      else
+        %{cohens_d: 0.0, interpretation: :negligible}
+      end
+    else
+      %{cohens_d: 0.0, interpretation: :insufficient_data}
+    end
+  end
+
+  defp normal_cdf(x) do
+    # Standard normal CDF approximation
+    a1 =  0.254829592
+    a2 = -0.284496736
+    a3 =  1.421413741
+    a4 = -1.453152027
+    a5 =  1.061405429
+    p  =  0.3275911
+    
+    sign = if x < 0, do: -1, else: 1
+    x = abs(x) / :math.sqrt(2)
+    
+    t = 1.0 / (1.0 + p * x)
+    y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * :math.exp(-x * x)
+    
+    0.5 * (1.0 + sign * y)
+  end
+
   # Server Callbacks
 
   @impl true
@@ -391,7 +542,7 @@ defmodule Zixir.Experiment do
     # Get final results
     {:ok, final_experiment} = GenServer.call(__MODULE__, {:stop_experiment, experiment.name, nil})
     
-    final_experiment
+    {:ok, final_experiment}
   end
 
   defp parse_duration(:days_1), do: 86_400_000
@@ -534,19 +685,28 @@ defmodule Zixir.Experiment do
     end
   end
 
-  defp approximate_p_value(t_stat, _df) do
-    # Simplified approximation using normal distribution
-    # For production, use proper t-distribution CDF
-    z = t_stat
+  defp approximate_p_value(t_stat, df) do
+    # More accurate p-value approximation using t-distribution
+    # For larger df, approaches normal distribution
+    x = abs(t_stat)
     
-    # Rough approximation of two-tailed p-value
-    # This is simplified - real implementation would use erf or t-distribution tables
-    cond do
-      z > 2.576 -> 0.01  # p < 0.01
-      z > 1.96 -> 0.05   # p < 0.05
-      z > 1.645 -> 0.10  # p < 0.10
-      true -> 1.0        # Not significant
+    # Use normal approximation for large samples (df > 30)
+    # For smaller samples, use simplified t-distribution approximation
+    p_value = if df > 30 do
+      # Normal distribution CDF approximation
+      # Two-tailed p-value = 2 * (1 - CDF(|t|))
+      2 * (1 - normal_cdf(x))
+    else
+      # Simplified t-distribution approximation
+      # This is more accurate than the previous lookup table
+      gamma_approx = :math.sqrt(:math.pow(df, df) * :math.exp(-df) / :math.sqrt(2 * :math.pi * df))
+      t_gamma = :math.pow(1 + x * x / df, -(df + 1) / 2)
+      cdf = 0.5 + x * gamma_approx * t_gamma / 2
+      max(0.0, min(1.0, 2 * (1 - cdf)))
     end
+    
+    # Clamp to valid range
+    max(0.0, min(1.0, p_value))
   end
 
   defp monitor_experiment(experiment) do

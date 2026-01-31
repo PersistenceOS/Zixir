@@ -97,17 +97,34 @@ defmodule Zixir.Compiler.TypeSystem do
   Infer types for all expressions in the AST.
   Returns {:ok, typed_ast} or {:error, TypeError}
   """
-  def infer(ast) do
-    # Initialize type environment and variable counter
+  def infer({:program, _} = ast) do
     env = %{}
     var_counter = 0
     
     try do
-      {typed_ast, _final_env, _final_counter} = infer_program(ast, env, var_counter)
+      result = infer_program(ast, env, var_counter)
+      {typed_ast, _final_env, _final_counter} = wrap_result(result)
       {:ok, typed_ast}
     rescue
       e in TypeError -> {:error, e}
     end
+  end
+  
+  def infer(ast) do
+    # If not a program, wrap it and infer
+    infer({:program, List.wrap(ast)})
+  end
+
+  defp wrap_result({{:program, _} = typed_ast, env, counter}) do
+    {typed_ast, env, counter}
+  end
+  
+  defp wrap_result({typed_stmts, env, counter}) when is_list(typed_stmts) do
+    {{:program, typed_stmts}, env, counter}
+  end
+  
+  defp wrap_result(other) do
+    other
   end
 
   @doc """
@@ -479,7 +496,15 @@ defmodule Zixir.Compiler.TypeSystem do
 
   defp types_match?(t1, t2), do: t1 == t2
 
+  # Pattern: {tag, value} -> type is 2nd element
   defp get_type({_, _, type}), do: type
+  # Pattern: {tag, value, extra} -> type is 3rd element  
+  defp get_type({_, _, _, type}), do: type
+  # Pattern: {tag, value, line, col} -> type is 4th element (4 total)
+  defp get_type({_, _, _, _, type}), do: type
+  # Pattern: {tag, value, line, col, type} -> type is 5th element (5 total)
+  defp get_type({_, _, _, _, _, type}), do: type
+  # Fallback for {:type, type, term}
   defp get_type({:type, type}), do: type
   defp get_type(_), do: :unknown
 
@@ -587,4 +612,250 @@ defmodule Zixir.Compiler.TypeSystem do
   end
 
   defp collect_all_types(_, acc), do: acc
+
+  @doc """
+  Infer type for lambda expressions.
+  """
+  defp infer_expr({:lambda, params, return_type, body, line, col}, env, counter) do
+    {param_types, counter} = 
+      Enum.map_reduce(params, counter, fn {_pname, ptype}, c ->
+        case ptype do
+          {:type, :auto} -> {Type.var(c), c + 1}
+          {:type, t} -> {zixir_type_to_internal(t), c}
+          t -> {zixir_type_to_internal(t), c}
+        end
+      end)
+    
+    ret_type = case return_type do
+      {:type, :auto} -> Type.var(counter)
+      {:type, t} -> zixir_type_to_internal(t)
+      t -> zixir_type_to_internal(t)
+    end
+    
+    counter = if match?({:var, _}, ret_type), do: counter + 1, else: counter
+    
+    lambda_env = 
+      Enum.reduce(Enum.zip(params, param_types), env, fn {{pname, _}, ptype}, e ->
+        Map.put(e, pname, ptype)
+      end)
+    
+    {typed_body, _final_env, counter} = infer_statement(body, lambda_env, counter)
+    body_type = get_type(typed_body)
+    
+    {unified_ret, _} = unify(ret_type, body_type, %{})
+    
+    lambda_type = Type.function(param_types, unified_ret)
+    typed_lambda = {:lambda, Enum.zip(params, param_types), unified_ret, typed_body, line, col}
+    {set_type(typed_lambda, lambda_type), env, counter}
+  end
+
+  @doc """
+  Infer type for struct types.
+  """
+  defp infer_expr({:struct, name, fields, line, col}, env, counter) do
+    field_types = Enum.map(fields, fn {fname, ftype} ->
+      {fname, zixir_type_to_internal(ftype)}
+    end)
+    
+    struct_type = {:struct, field_types}
+    typed_struct = {:struct, name, field_types, line, col}
+    {set_type(typed_struct, struct_type), env, counter}
+  end
+
+  @doc """
+  Infer type for struct initialization.
+  """
+  defp infer_expr({:struct_init, name, field_inits, line, col}, env, counter) do
+    {typed_inits, {env, counter}} = 
+      Enum.map_reduce(field_inits, {env, counter}, fn {fname, expr}, {e, c} ->
+        {typed_expr, new_e, new_c} = infer_expr(expr, e, c)
+        {{fname, typed_expr}, {new_e, new_c}}
+      end)
+    
+    field_types = Enum.map(typed_inits, fn {fname, typed_expr} ->
+      {fname, get_type(typed_expr)}
+    end)
+    
+    struct_type = {:struct, field_types}
+    typed_init = {:struct_init, name, typed_inits, line, col}
+    {set_type(typed_init, struct_type), env, counter}
+  end
+
+  @doc """
+  Infer type for struct field access.
+  """
+  defp infer_expr({:struct_get, struct_expr, field_name, line, col}, env, counter) do
+    {typed_struct, env, counter} = infer_expr(struct_expr, env, counter)
+    struct_type = get_type(typed_struct)
+    
+    field_type = case struct_type do
+      {:struct, field_types} ->
+        case List.keyfind(field_types, field_name, 0) do
+          {^field_name, ftype} -> ftype
+          nil -> Type.var(counter)
+        end
+      _ -> Type.var(counter)
+    end
+    
+    counter = if match?({:var, _}, field_type), do: counter + 1, else: counter
+    
+    typed_get = {:struct_get, typed_struct, field_name, line, col}
+    {set_type(typed_get, field_type), env, counter}
+  end
+
+  @doc """
+  Infer type for map types.
+  """
+  defp infer_expr({:map, entries, line, col}, env, counter) when is_list(entries) do
+    {typed_entries, {env, counter}} = 
+      Enum.map_reduce(entries, {env, counter}, fn {key_expr, value_expr}, {e, c} ->
+        {typed_key, new_e, new_c} = infer_expr(key_expr, e, c)
+        {typed_value, final_e, final_c} = infer_expr(value_expr, new_e, new_c)
+        {{typed_key, typed_value}, {final_e, final_c}}
+      end)
+    
+    key_types = Enum.map(typed_entries, fn {k, _} -> get_type(k) end)
+    value_types = Enum.map(typed_entries, fn {_, v} -> get_type(v) end)
+    
+    unified_key = if length(key_types) > 0 do
+      Enum.reduce(tl(key_types), hd(key_types), fn t, acc ->
+        {u, _} = unify(acc, t, %{})
+        u
+      end)
+    else
+      Type.var(counter)
+    end
+    
+    unified_value = if length(value_types) > 0 do
+      Enum.reduce(tl(value_types), hd(value_types), fn t, acc ->
+        {u, _} = unify(acc, t, %{})
+        u
+      end)
+    else
+      Type.var(counter + 1)
+    end
+    
+    counter = if match?({:var, _}, unified_key), do: counter + 1, else: counter
+    counter = if match?({:var, _}, unified_value), do: counter + 1, else: counter
+    
+    map_type = {:map, unified_key, unified_value}
+    typed_map = {:map, typed_entries, line, col}
+    {set_type(typed_map, map_type), env, counter}
+  end
+
+  @doc """
+  Infer type for map access.
+  """
+  defp infer_expr({:map_get, map_expr, key_expr, line, col}, env, counter) do
+    {typed_map, env, counter} = infer_expr(map_expr, env, counter)
+    {typed_key, env, counter} = infer_expr(key_expr, env, counter)
+    
+    map_type = get_type(typed_map)
+    
+    value_type = case map_type do
+      {:map, _, value_type} -> value_type
+      _ -> Type.var(counter)
+    end
+    
+    counter = if match?({:var, _}, value_type), do: counter + 1, else: counter
+    
+    typed_get = {:map_get, typed_map, typed_key, line, col}
+    {set_type(typed_get, value_type), env, counter}
+  end
+
+  @doc """
+  Infer type for list comprehension.
+  """
+  defp infer_expr({:list_comp, generator, filter, map_expr, line, col}, env, counter) do
+    {typed_gen, env, counter} = infer_expr(generator, env, counter)
+    
+    env_with_gen = case generator do
+      {:for_gen, var, _} -> Map.put(env, var, Type.var(counter))
+      _ -> env
+    end
+    
+    env_with_gen = if filter != nil do
+      {_typed_filter, env_with_gen, _counter} = infer_expr(filter, env_with_gen, counter)
+      env_with_gen
+    else
+      env_with_gen
+    end
+    
+    {typed_map, _env_with_gen, counter} = infer_expr(map_expr, env_with_gen, counter)
+    elem_type = get_type(typed_map)
+    
+    typed_comp = {:list_comp, typed_gen, nil, typed_map, line, col}
+    {set_type(typed_comp, Type.array(elem_type)), env, counter}
+  end
+
+  @doc """
+  Infer type for range expressions.
+  """
+  defp infer_expr({:range, start, end_expr, line, col}, env, counter) do
+    {typed_start, env, counter} = infer_expr(start, env, counter)
+    {typed_end, env, counter} = infer_expr(end_expr, env, counter)
+    
+    start_type = get_type(typed_start)
+    end_type = get_type(typed_end)
+    
+    range_type = case {start_type, end_type} do
+      {:int, :int} -> Type.array(:int)
+      {_, _} -> Type.array(Type.var(counter))
+    end
+    
+    typed_range = {:range, typed_start, typed_end, line, col}
+    {set_type(typed_range, range_type), env, counter}
+  end
+
+  @doc """
+  Infer type for try/catch expressions.
+  """
+  defp infer_expr({:try, body, catches, line, col}, env, counter) do
+    {typed_body, env, counter} = infer_statement(body, env, counter)
+    body_type = get_type(typed_body)
+    
+    catch_types = Enum.map(catches, fn {_var, _type, catch_body} ->
+      {typed_catch, _env, _counter} = infer_statement(catch_body, env, counter)
+      get_type(typed_catch)
+    end)
+    
+    unified_type = if length(catch_types) > 0 do
+      Enum.reduce(catch_types, body_type, fn ct, acc ->
+        {u, _} = unify(acc, ct, %{})
+        u
+      end)
+    else
+      body_type
+    end
+    
+    typed_try = {:try, typed_body, catches, line, col}
+    {set_type(typed_try, unified_type), env, counter}
+  end
+
+  @doc """
+  Infer type for async/await expressions.
+  """
+  defp infer_expr({:async, expr, line, col}, env, counter) do
+    {typed_expr, env, counter} = infer_expr(expr, env, counter)
+    expr_type = get_type(typed_expr)
+    
+    future_type = {:future, expr_type}
+    typed_async = {:async, typed_expr, line, col}
+    {set_type(typed_async, future_type), env, counter}
+  end
+
+  defp infer_expr({:await, expr, line, col}, env, counter) do
+    {typed_expr, env, counter} = infer_expr(expr, env, counter)
+    expr_type = get_type(typed_expr)
+    
+    result_type = case expr_type do
+      {:future, t} -> t
+      _ -> Type.var(counter)
+    end
+    
+    counter = if match?({:var, _}, result_type), do: counter + 1, else: counter
+    
+    typed_await = {:await, typed_expr, line, col}
+    {set_type(typed_await, result_type), env, counter}
+  end
 end

@@ -93,7 +93,7 @@ defmodule Zixir.Python.Worker do
     {:reply, {:error, :port_not_ready}, state}
   end
 
-  def handle_call(:health_check, _from, %{port: port, ready: true} = state) do
+  def handle_call(:health_check, _from, %{port: _port, ready: true} = state) do
     # Simple health check - if port is open and we've received ready signal, we're healthy
     {:reply, {:ok, :healthy}, state}
   end

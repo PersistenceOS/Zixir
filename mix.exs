@@ -1,7 +1,7 @@
 defmodule Zixir.MixProject do
   use Mix.Project
 
-  @version "4.0.0"
+  @version "5.0.0"
   @source_url "https://github.com/Zixir-lang/Zixir"
 
   def project do
@@ -23,7 +23,8 @@ defmodule Zixir.MixProject do
     [
       zixir: [
         include_executables_for: [:unix, :windows],
-        applications: [runtime_tools: :permanent]
+        applications: [runtime_tools: :permanent],
+        overlays: ["rel/overlays"]
       ]
     ]
   end

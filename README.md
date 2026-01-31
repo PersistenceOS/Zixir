@@ -6,6 +6,8 @@
 
 Zixir is an **AI automation language** that bakes workflow orchestration, resource limits, and observability into one runtime—no Airflow + Redis + Prometheus glue. Small, expression-oriented, on a **three-tier runtime**: **Elixir** (orchestrator), **Zig** (engine), **Python** (specialist).
 
+**Zixir is its own language** (own grammar and semantics), implemented with Elixir, compiling to Zig, and calling into Python. You write `.zixir` source; it is not Elixir or Zig syntax.
+
 **Who it's for:** Developers and teams building AI automation, agentic workflows, and ML pipelines who prefer a single, expression-oriented language and runtime over managing Airflow, K8s, Redis, and custom YAML. Best fit for engineers who like Elixir/FP, want pattern matching and type inference, and need built-in fault tolerance and observability without extra infra.
 
 ## Why Zixir?
@@ -33,6 +35,15 @@ Each tier does one job well; together: orchestration, speed, and ecosystem.
 | **Python** | Specialist | ML (PyTorch, TensorFlow), data (pandas, numpy), APIs. Use existing libraries without rewriting. |
 
 Elixir orchestrates and restarts failed workers; Zig runs hot-path code; Python handles ML and data. Good fit for agentic/AI tooling and teams that want FP (pattern matching, type inference) plus built-in fault tolerance.
+
+### How it works
+
+Zixir has its **own grammar** (`let`, expressions, `engine.op(args)`, `python "module" "function" (args)`, literals, binary ops). Source is **parsed** in Elixir into a Zixir AST, then either:
+
+- **Interpreted** — `Zixir.eval(source)` evaluates the AST in Elixir; `engine.*` calls run in Zig NIFs, `python` calls go to Python via a port.
+- **Compiled** — `Zixir.Compiler.compile(source)` type-checks, optimizes, and **emits Zig**; the Zig is compiled to a native binary or run JIT.
+
+So: your code is Zixir only; the runtime is implemented with Elixir, uses Zig for the engine and codegen, and calls into Python for libraries.
 
 ### Zixir vs. alternatives (honest assessment)
 

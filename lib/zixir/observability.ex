@@ -83,6 +83,16 @@ defmodule Zixir.Observability do
   end
 
   @doc """
+  Send an alert for critical events.
+  """
+  def alert(message, metadata \\ []) do
+    log(:error, "ALERT: #{message}", metadata)
+    
+    # Also increment alert counter metric
+    increment_counter("alerts_total", 1, [alert_type: message])
+  end
+
+  @doc """
   Log workflow step execution.
   """
   def log_step(workflow_name, step_name, status, metadata \\ []) do

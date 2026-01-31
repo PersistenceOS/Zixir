@@ -27,6 +27,11 @@ defmodule Zixir.Application do
       Zixir.Observability,
       Zixir.Cache,
       
+      # Autonomous AI features
+      Zixir.Drift,
+      Zixir.Experiment,
+      Zixir.Quality,
+      
       # Intent router (last, depends on all above)
       Zixir.Intent
     ]

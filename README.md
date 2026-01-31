@@ -2,7 +2,7 @@
 
 <p align="center"><img src="assets/zixir-icon.png" alt="Zixir" width="128" /></p>
 
-**Repository:** [github.com/PersistenceOS/Zixir](https://github.com/PersistenceOS/Zixir)
+**Repository:** [github.com/Zixir-lang/Zixir](https://github.com/Zixir-lang/Zixir)
 
 Zixir is an **AI automation language** that bakes workflow orchestration, resource limits, and observability into one runtime—no Airflow + Redis + Prometheus glue. Small, expression-oriented, on a **three-tier runtime**: **Elixir** (orchestrator), **Zig** (engine), **Python** (specialist).
 

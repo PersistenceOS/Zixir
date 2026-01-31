@@ -19,7 +19,7 @@ This release adds Python Bridge integration, 25+ engine operations, a module sys
 ## Quick start
 
 ```bash
-git clone https://github.com/PersistenceOS/Zixir.git
+git clone https://github.com/Zixir-lang/Zixir.git
 cd Zixir
 git checkout v0.2.0
 mix deps.get

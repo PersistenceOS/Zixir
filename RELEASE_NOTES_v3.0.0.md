@@ -52,7 +52,7 @@ This release adds full AI automation support: workflow orchestration with checkp
 ## Quick start
 
 ```bash
-git clone https://github.com/PersistenceOS/Zixir.git
+git clone https://github.com/Zixir-lang/Zixir.git
 cd Zixir
 git checkout v3.0.0
 mix deps.get

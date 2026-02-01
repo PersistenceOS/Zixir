@@ -28,7 +28,12 @@ This release adds a **global/portable CLI** (run Zixir from any terminal path), 
 
 ---
 
-## 4. Release and compatibility
+## 4. Implementation status (README / PROJECT_ANALYSIS)
+
+- **README.md** — Implementation Status updated: Zig Backend, Type System, MLIR, Parser, Quality/Drift, and Experiment moved from "Partially Implemented" to "Fully Implemented"; Portable CLI added to Fully Implemented; Partially Implemented section now notes "None currently."
+- **PROJECT_ANALYSIS.md** — Implementation Status by Feature table and LSP section updated to match (100% / Complete / Ready where applicable).
+
+## 5. Release and compatibility
 
 - **mix.exs** — Version 5.0.0; release overlays `rel/overlays` for portable runner scripts.
 - **PowerShell 7.x** — Test script runs correctly; release `zixir_run.bat` works from any cwd when given full path to a `.zixir` file.

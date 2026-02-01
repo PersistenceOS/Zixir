@@ -181,25 +181,26 @@ Expected: `examples/hello.zixir` prints `11.0`. On Windows: `scripts\verify.ps1`
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Parser | Complete | Recursive descent, handles most syntax |
+| Parser | Complete | Recursive descent; tokenization, expressions, control flow, comprehensions |
 | Engine NIFs | Complete | 20+ Zig operations (sum, product, dot, etc.) |
+| Zig Backend | Complete | Codegen, functions, optimization passes |
+| Type System | Complete | Inference, lambda/map/struct types |
+| MLIR | Complete | Text generation + optimizations (CSE, constant folding, LICM) |
+| Quality/Drift | Complete | Validation, detection, auto-fix |
+| Experiment | Complete | A/B testing framework, statistics |
 | Python Port | Working | `Zixir.call_python/3` via ports |
 | Workflow | Complete | Steps, retries, checkpoints, sandboxing |
 | Observability | Complete | Logging, metrics, tracing, alerts |
 | Cache | Complete | ETS + disk caching |
 | CLI/REPL | Working | All commands functional |
+| Portable CLI | Working | `zixir_run.sh` / `zixir_run.bat` from release; run from any path |
 | LSP Server | ✅ Ready | `mix zixir.lsp` + VS Code integration |
 
 ### ⚠️ Partially Implemented
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Zig Backend | 100% | Generates code, functions work, optimization passes complete |
-| Type System | 100% | Inference complete, lambda/map types supported |
-| MLIR | 100% | Text generation + optimizations (CSE, constant folding, LICM) |
-| Parser | 100% | Tokenization, expressions, control flow, comprehensions |
-| Quality/Drift | 100% | Validation, detection, auto-fix complete |
-| Experiment | 100% | A/B testing framework, statistics complete |
+| — | None currently | Items previously listed here have been completed (see above). |
 
 ### ❌ Aspirational / Not Implemented
 

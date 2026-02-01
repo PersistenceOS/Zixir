@@ -50,7 +50,6 @@ git checkout v5.0.0
 mix deps.get
 mix zig.get
 mix compile
-mix test
 ```
 
 Portable CLI (after `mix release`, add `bin/` to PATH):

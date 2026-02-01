@@ -195,20 +195,20 @@ Expected: `examples/hello.zixir` prints `11.0`. On Windows: `scripts\verify.ps1`
 | CLI/REPL | Working | All commands functional |
 | Portable CLI | Working | `zixir_run.sh` / `zixir_run.bat` from release; run from any path |
 | LSP Server | ✅ Ready | `mix zixir.lsp` + VS Code integration |
+| Package Manager | Complete | `Zixir.Package`: resolve, install (Git/path), list, cache; `zixir.toml` manifest |
 
 ### ⚠️ Partially Implemented
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| — | None currently | Items previously listed here have been completed (see above). |
+| Python FFI | Implemented | Port-based (PythonFFI) default; NIF path (PythonNIF + `priv/python_nif.zig`) when NIF built; `Zixir.Python` auto-selects |
+| GPU | Implemented | Detection (CUDA/ROCm/Metal); codegen, compile, and launcher execution; requires nvcc/hipcc/Metal SDK |
 
 ### ❌ Aspirational / Not Implemented
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Python FFI | Stub only | Ports work fine; FFI is stub |
-| GPU | Detection only | No CUDA/ROCm kernels |
-| Package Manager | Not implemented | Not needed yet |
+| — | None currently | Former aspirational items (Python FFI, GPU, Package Manager) are now implemented or partial (see above). |
 
 **Note:** See [PROJECT_ANALYSIS.md](PROJECT_ANALYSIS.md) for detailed implementation status.
 

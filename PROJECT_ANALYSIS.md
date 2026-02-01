@@ -139,8 +139,9 @@ data.mean  # Field access exists but map support is minimal
 | **Quality/Drift** | 100% | Validation, detection, auto-fix |
 | **Experiment** | 100% | A/B testing framework, statistics |
 | **Python Port** | Working | `Zixir.call_python/3` via ports |
-| **Python FFI** | Stub | Stubs only; ports used in production |
-| **GPU** | Detection | Detection only; no CUDA/ROCm kernels |
+| **Python FFI** | Implemented | Port-based default; NIF (PythonNIF + `priv/python_nif.zig`) when built; auto-select |
+| **GPU** | Implemented | Detection + codegen + compile + launcher execution (CUDA/ROCm/Metal); toolchain required |
+| **Package Manager** | Complete | `Zixir.Package`: resolve, install Git/path, list, cache; `zixir.toml` |
 | **LSP** | Ready | `mix zixir.lsp` + VS Code integration |
 | **CLI/REPL** | Working | All commands functional |
 | **Portable CLI** | Working | `zixir_run.sh` / `zixir_run.bat` from release |
@@ -161,14 +162,14 @@ data.mean  # Field access exists but map support is minimal
 ### Overstated Claims in Documentation:
 
 **COMPILER_SUMMARY.md Claims:**
-- "Python FFI (100-1000x faster than ports)" - ❌ Not implemented (ports used; FFI stub)
+- "Python FFI (100-1000x faster than ports)" - ✅ Implemented when NIF built (PythonNIF + priv/python_nif.zig); port default otherwise
 - "MLIR optimization (vectorization, parallelization)" - ✅ Implemented (CSE, constant folding, LICM)
-- "GPU acceleration (CUDA/ROCm support)" - ❌ Not implemented (detection only)
+- "GPU acceleration (CUDA/ROCm support)" - ✅ Implemented (detection, codegen, compile, launcher execution; CUDA/ROCm/Metal)
 - "Hindley-Milner type inference" - ✅ Type inference complete (lambda/map/struct)
-- "Zero-overhead Python via C API FFI" - ❌ Not implemented
+- "Zero-overhead Python via C API FFI" - ✅ Optional when NIF built
 
 **README.md:**
-- Implementation status table aligned with current completion (Zig backend, type system, MLIR, parser, LSP, portable CLI all reflected).
+- Implementation status table aligned with current completion (including Python FFI, GPU, Package Manager).
 
 ### What's Actually True:
 - ✅ Parser: recursive descent; tokenization, expressions, control flow, comprehensions
@@ -178,25 +179,23 @@ data.mean  # Field access exists but map support is minimal
 - ✅ Engine operations (Zig NIFs), CLI, REPL, portable CLI
 - ✅ LSP: `mix zixir.lsp` + VS Code integration
 - ✅ Workflow, observability, cache, quality/drift, experiment framework
-- ✅ Python via ports (FFI stub only)
+- ✅ Python: port-based (PythonFFI) default; NIF path (PythonNIF) when NIF built
+- ✅ GPU: detection, codegen, compile, launcher execution (CUDA/ROCm/Metal)
+- ✅ Package Manager: Zixir.Package (resolve, install, list, zixir.toml)
 
 ## 🚀 What Works Right Now
 
 You CAN:
 1. ✅ Write basic Zixir programs with variables, arithmetic, arrays
 2. ✅ Use engine operations for fast math
-3. ✅ Call Python via ports (not FFI)
+3. ✅ Call Python via ports (and via NIF when built)
 4. ✅ Compile to native binaries
 5. ✅ Use the REPL for experimentation
-6. ✅ Get syntax highlighting in VS Code (TextMate grammar)
+6. ✅ Get syntax highlighting and LSP in VS Code (TextMate grammar + mix zixir.lsp)
+7. ✅ Use Zixir.Package for dependencies (resolve, install from Git/path, zixir.toml)
+8. ✅ Use GPU codegen/compile/run when nvcc/hipcc/Metal toolchain is available
 
-You CANNOT:
-1. ❌ Use Python FFI (it's just stubs)
-2. ❌ Get MLIR optimizations
-3. ❌ Use GPU acceleration
-4. ❌ Get IDE features (autocomplete, error highlighting, etc.)
-5. ❌ Use advanced language features reliably
-6. ❌ Get performance claims from documentation
+**Limitations:** Python NIF requires the NIF binary to be built (priv/python_nif.zig); GPU execution requires the appropriate toolchain (nvcc/hipcc/Metal SDK) installed.
 
 ## 💡 Recommendations
 
